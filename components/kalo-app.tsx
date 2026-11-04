@@ -13,6 +13,7 @@ import { calculatePlan, localDate, sumDiary } from "@/lib/calories";
 import { intlLocale, localeNames, translations } from "@/lib/i18n";
 import { profileSchema } from "@/lib/validations";
 import { ScannerView } from "./scanner";
+import { PwaInstallBanner, PwaRegistration } from "./pwa";
 
 const todayDate = () => localDate();
 const calendarDisplay = (date: string, locale: Locale, options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }) =>
@@ -90,7 +91,10 @@ export function KaloApp() {
     })();
   }, []);
 
-  useEffect(() => { if (loaded) localStorage.setItem("kalo_locale", locale); }, [locale, loaded]);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    if (loaded) localStorage.setItem("kalo_locale", locale);
+  }, [locale, loaded]);
   useEffect(() => {
     if (loaded && !user) localStorage.setItem("kalo_demo", JSON.stringify({ profile, diary, weights }));
   }, [loaded, user, profile, diary, weights]);
@@ -186,6 +190,7 @@ export function KaloApp() {
         </div></div>
       {!loaded && <div className="initial-loading"><LoaderCircle size={29} className="spin"/> KALO</div>}
       {loaded && <>
+        {view === "dashboard" && <PwaInstallBanner locale={locale}/>}
         {!user && <div className="demo-banner"><span className="demo-pill"><Sparkles size={13}/>{t.demo}</span><span>{t.demoNotice}</span><button onClick={() => setAuthOpen("signup")}>{t.saveAccount}<ArrowRight size={15}/></button></div>}
         {view === "dashboard" && <Dashboard locale={locale} profile={profile} diary={diary} weights={weights} plan={plan} today={today} total={totals.kcal} remaining={remaining} percent={percent} onNavigate={switchView}/ >}
         {view === "scanner" && <ScannerView locale={locale} addEntry={addEntry} notify={notify} today={today}/ >}
@@ -196,6 +201,7 @@ export function KaloApp() {
       </>}
     </main>
     <nav className="mobile-bottom-nav" aria-label="Mobile navigation">{(Object.keys(navIcons) as View[]).map(key => {const Icon = navIcons[key]; return <button key={key} className={view === key ? "active" : ""} onClick={() => switchView(key)}><Icon size={21}/><span>{t[navKeys[key]]}</span></button>;})}</nav>
+    <PwaRegistration/>
     {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <Info size={18}/> : <Check size={18}/>}<span>{toast.text}</span><button onClick={() => setToast(null)} aria-label={t.close}><X size={16}/></button></div>}
     {authOpen && <AuthModal mode={authOpen} setMode={setAuthOpen} locale={locale} dbConfigured={dbConfigured} submit={signIn}/>}
   </div>;
