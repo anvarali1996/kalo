@@ -1,3 +1,28 @@
+# KALO v1.1 — PWA va mobil barcode yangilanishi
+
+Ushbu branch `main` bilan merge qilinmaguncha Vercel production yangilanmaydi. KALO’ning hozirgi Neon bazasi va jadvallari o‘zgarmaydi.
+
+## Nima qo‘shildi?
+
+- PWA manifesti, telefon ikonkalari, Android'da o‘rnatish tugmasi va iPhone uchun bosh ekranga qo‘shish ko‘rsatmasi.
+- Service worker: faqat offline sahifa va ikonlarni cache qiladi; foydalanuvchi ma’lumotlari, sahifa va API javoblarini cache qilmaydi. Internet o‘chsa scanner va Neon kundalik ishlamaydi.
+- Mobil skaner: orqa/old kamera, mos qurilmalarda chiroq, yaxshiroq ruxsat xabarlari, rasm va raqam orqali qidirish.
+- O‘zbek, ingliz, rus va latish tillarida yangi matnlar.
+
+## Merge qilishdan avval
+
+```bash
+npm ci
+npm run check:pwa
+npm run typecheck
+npm test
+npm run build
+```
+
+Vercel Preview'da ro‘yxatdan o‘tish/kirish, 3017620422003 barcode, kamera ruxsatlari, old/orqa kamera, rasm orqali qidirish va telefon bosh ekranga o‘rnatishni sinang. `DATABASE_URL` yoki Neon SQL jadvallarini qayta yaratish **kerak emas**. Production `OFF_CONTACT_EMAIL` o‘zgaruvchisini saqlang.
+
+---
+
 # KALO — kaloriya va vazn nazorati
 
 **Next.js 16 · React 19 · TypeScript · Node.js · Neon PostgreSQL · Drizzle ORM · Tailwind CSS v4 · ZXing · Open Food Facts v3**
