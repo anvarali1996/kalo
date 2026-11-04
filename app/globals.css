@@ -41,3 +41,13 @@ h1,h2,h3,p{margin-top:0}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 
 .source-link{color:#367b54;font-weight:800;text-decoration:underline;text-underline-offset:2px}
+
+
+/* KALO v1.1: mobile PWA install banner and camera controls */
+.pwa-banner{display:flex;align-items:center;gap:12px;margin:0 0 18px;padding:12px 14px;border:1px solid #cfe5d2;border-radius:14px;background:#edf6ed;color:#285a43}
+.pwa-banner-icon{flex:none;width:39px;height:39px;border-radius:12px;display:grid;place-items:center;background:#d8eada}
+.pwa-banner-copy{flex:1;min-width:0}.pwa-banner-copy strong{display:block;font-size:12px;font-weight:800;margin-bottom:4px}.pwa-banner-copy p{font-size:11px;line-height:1.55;margin:0;color:#52745b}
+.pwa-banner-action{white-space:nowrap;padding:10px 12px;font-size:11px}.pwa-hint-icon{display:grid;place-items:center;color:#5d8b6c}
+.pwa-dismiss{flex:none;border:0;background:transparent;color:#60816b;cursor:pointer;padding:5px;border-radius:8px}
+.camera-options{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}.camera-options .btn{padding:9px 12px;font-size:11px}
+@media(max-width:700px){.pwa-banner{gap:9px}.pwa-banner-icon{width:34px;height:34px}.pwa-banner-action{padding:8px}.camera-options{gap:7px}}
