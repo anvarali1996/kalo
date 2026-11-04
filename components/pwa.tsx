@@ -33,9 +33,9 @@ export function PwaInstallBanner({ locale }: { locale: Locale }) {
     setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
     setMacSafari(/Macintosh/i.test(navigator.userAgent) && /Safari/i.test(navigator.userAgent) && !/Chrome|Chromium|Edg/i.test(navigator.userAgent));
     setInstalled(standalone);
-    setDismissed(sessionStorage.getItem("kalo_hide_install") === "1");
-    setReady(true);
-    const onPrompt = (event: Event) => { event.preventDefault(); setPromptEvent(event as InstallPromptEvent); };
+    setDismissed(localStorage.getItem("kalo_hide_install") === "1");
+    setShow(window.matchMedia("(max-width: 900px)").matches);
+    const onPrompt = (event: Event) => { event.preventDefault(); setPromptEvent(event as InstallPromptEvent); setShow(true); };
     const onInstalled = () => { setInstalled(true); setPromptEvent(null); };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
