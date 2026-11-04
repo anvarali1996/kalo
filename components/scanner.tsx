@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Barcode, Camera, CameraOff, Check, ChevronRight, Info, LoaderCircle, Package, Plus, ScanLine, Search, Upload, X } from "lucide-react";
+import { Barcode, Camera, CameraOff, Check, ChevronRight, Flashlight, Info, LoaderCircle, Package, Plus, RefreshCw, ScanLine, Search, Upload, X } from "lucide-react";
 import type { DiaryItem, Locale, Product } from "@/lib/types";
 import { scale } from "@/lib/calories";
 import { translations } from "@/lib/i18n";
@@ -20,6 +20,11 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const controlsRef = useRef<{ stop: () => void; switchTorch?: (enabled: boolean) => Promise<void> } | null>(null);
+  const lookupRef = useRef<AbortController | null>(null);
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,52 +40,94 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   const lookup = useCallback(async (code: string) => {
     const digits = code.trim();
     if (!/^\d{6,14}$/.test(digits)) { notify(t.barcodeInvalid, true); return; }
+    lookupRef.current?.abort();
+    const controller = new AbortController();
+    lookupRef.current = controller;
+    setScanning(false);
     setBarcode(digits); setLoading(true); setProduct(null);
     try {
-      const response = await fetch(`/api/products/${encodeURIComponent(digits)}`);
+      const response = await fetch(`/api/products/${encodeURIComponent(digits)}`, { signal: controller.signal, cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) throw new Error(response.status === 404 ? t.notFound : payload.error || t.networkError);
+      if (controller.signal.aborted) return;
       setProduct(payload.product as Product);
       setGrams(100);
-    } catch (error) { notify(error instanceof Error ? error.message : t.networkError, true); }
-    finally { setLoading(false); }
+    } catch (error) { if (!controller.signal.aborted) notify(error instanceof Error ? error.message : t.networkError, true); }
+    finally { if (lookupRef.current === controller) { lookupRef.current = null; setLoading(false); } }
   }, [notify, t.barcodeInvalid, t.notFound, t.networkError]);
+
+  useEffect(() => () => { lookupRef.current?.abort(); }, []);
 
   useEffect(() => {
     if (!scanning) return;
     let stopped = false;
-    let controls: { stop: () => void } | null = null;
+    let controls: { stop: () => void; switchTorch?: (enabled: boolean) => Promise<void> } | null = null;
+    setTorchSupported(false); setTorchOn(false);
     const start = async () => {
       try {
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         const reader = new BrowserMultiFormatReader();
         if (!videoRef.current || stopped) return;
-        controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+        controls = await reader.decodeFromConstraints({ audio: false, video: { facingMode: { ideal: facingMode } } }, videoRef.current, (result) => {
           if (!result || stopped) return;
+          const detectedCode = result.getText();
+          if (!/^\d{6,14}$/.test(detectedCode)) return;
           stopped = true;
           if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(80);
           controls?.stop();
           setScanning(false);
-          void lookup(result.getText());
+          void lookup(detectedCode);
         });
         if (stopped) controls?.stop();
-      } catch {
-        if (!stopped) { setScanning(false); notify(t.cameraHint, true); }
+        else { controlsRef.current = controls; setTorchSupported(typeof controls.switchTorch === "function"); }
+      } catch (error) {
+        if (stopped) return;
+        const name = error instanceof Error ? error.name : "";
+        const message = name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError" ? t.cameraDenied
+          : name === "NotFoundError" || name === "OverconstrainedError" ? t.cameraUnavailable
+          : name === "NotReadableError" || name === "AbortError" ? t.cameraBusy : t.cameraFailed;
+        setScanning(false); notify(message, true);
       }
     };
     void start();
-    return () => { stopped = true; controls?.stop(); };
-  }, [scanning, lookup, notify, t.cameraHint]);
+    const onVisibility = () => { if (document.hidden) setScanning(false); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stopped = true; controls?.stop();
+      controlsRef.current = null;
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [scanning, facingMode, lookup, notify, t.cameraDenied, t.cameraUnavailable, t.cameraBusy, t.cameraFailed]);
 
+  const toggleCamera = () => {
+    if (scanning) { setScanning(false); return; }
+    if (!window.isSecureContext) { notify(t.cameraNotSecure, true); return; }
+    if (!navigator.mediaDevices?.getUserMedia) { notify(t.cameraUnavailable, true); return; }
+    setScanning(true);
+  };
+  const flipCamera = () => {
+    controlsRef.current?.stop();
+    controlsRef.current = null;
+    setTorchOn(false);
+    setFacingMode(current => current === "environment" ? "user" : "environment");
+  };
+  const toggleTorch = async () => {
+    const c = controlsRef.current;
+    if (!c?.switchTorch) return;
+    try { await c.switchTorch(!torchOn); setTorchOn(x => !x); }
+    catch { notify(t.torchFailed, true); }
+  };
   const scanPhoto = async (file?: File) => {
     if (!file) return;
+    if (file.size > 10*1024*1024) { notify(t.photoTooLarge, true); if (fileRef.current) fileRef.current.value=""; return; }
+    setScanning(false);
     const url = URL.createObjectURL(file);
     try {
       const { BrowserMultiFormatReader } = await import("@zxing/browser");
       const reader = new BrowserMultiFormatReader();
       const result = await reader.decodeFromImageUrl(url);
       await lookup(result.getText());
-    } catch { notify(t.notFound, true); }
+    } catch { notify(t.photoNoCode, true); }
     finally { URL.revokeObjectURL(url); if (fileRef.current) fileRef.current.value = ""; }
   };
 
@@ -131,13 +178,17 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
           {scanning && <div className="scanner-beam"/>}
         </div>
         <div className="camera-buttons">
-          <button type="button" className={`btn ${scanning ? "btn-outline" : "btn-primary"}`} onClick={() => setScanning(x => !x)}>
+          <button type="button" className={`btn ${scanning ? "btn-outline" : "btn-primary"}`} onClick={toggleCamera}>
             {scanning ? <CameraOff size={18}/> : <Camera size={18}/>} {scanning ? t.stopCam : t.startCam}
           </button>
           <button type="button" className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={17}/>{t.uploadPhoto}</button>
           <input ref={fileRef} type="file" accept="image/*" className="visually-hidden" aria-label={t.uploadPhoto}
             onChange={e => void scanPhoto(e.target.files?.[0])}/>
         </div>
+        {scanning && <div className="camera-options">
+          <button type="button" className="btn btn-outline" onClick={flipCamera}><RefreshCw size={16}/>{t.switchCamera}</button>
+          {torchSupported && <button type="button" className="btn btn-outline" aria-pressed={torchOn} onClick={() => void toggleTorch()}><Flashlight size={16}/>{t.flashlight} {torchOn ? "✓" : ""}</button>}
+        </div>}
         <p className="subtle-note"><Info size={14}/>{t.cameraHint}</p>
         <div className="separator-label"><span>{t.enterBarcode}</span></div>
         <form className="barcode-form" onSubmit={e => { e.preventDefault(); void lookup(barcode); }}>
