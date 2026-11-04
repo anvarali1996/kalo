@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Barcode, Camera, CameraOff, Check, ChevronRight, Info, LoaderCircle, Package, Plus, ScanLine, Search, Upload, X } from "lucide-react";
+import { Barcode, Camera, CameraOff, Check, ChevronRight, Flashlight, Info, LoaderCircle, Package, Plus, RefreshCw, ScanLine, Search, Upload, X } from "lucide-react";
 import type { DiaryItem, Locale, Product } from "@/lib/types";
 import { scale } from "@/lib/calories";
 import { translations } from "@/lib/i18n";
@@ -15,11 +15,21 @@ interface Props {
 
 const show = (value: number | null, unit = "g") => value === null ? "—" : `${Math.round(value * 10) / 10} ${unit}`;
 
+type CameraControls = {
+  stop: () => void | Promise<void>;
+  switchTorch?: (enabled: boolean) => Promise<void>;
+};
+
 export function ScannerView({ locale, addEntry, notify, today }: Props) {
   const t = translations[locale];
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const controlsRef = useRef<CameraControls | null>(null);
+  const lookupRef = useRef<AbortController | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,52 +45,147 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   const lookup = useCallback(async (code: string) => {
     const digits = code.trim();
     if (!/^\d{6,14}$/.test(digits)) { notify(t.barcodeInvalid, true); return; }
-    setBarcode(digits); setLoading(true); setProduct(null);
+    // The user can start a new scan before an earlier lookup finishes.
+    // Cancel the earlier request so stale product results never replace newer ones.
+    lookupRef.current?.abort();
+    const controller = new AbortController();
+    lookupRef.current = controller;
+    setScanning(false);
+    setBarcode(digits);
+    setLoading(true);
+    setProduct(null);
     try {
-      const response = await fetch(`/api/products/${encodeURIComponent(digits)}`);
-      const payload = await response.json();
+      const response = await fetch(`/api/products/${encodeURIComponent(digits)}`, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(response.status === 404 ? t.notFound : payload.error || t.networkError);
+      if (controller.signal.aborted) return;
       setProduct(payload.product as Product);
       setGrams(100);
-    } catch (error) { notify(error instanceof Error ? error.message : t.networkError, true); }
-    finally { setLoading(false); }
+    } catch (error) {
+      if (!controller.signal.aborted) notify(error instanceof Error ? error.message : t.networkError, true);
+    } finally {
+      if (lookupRef.current === controller) {
+        lookupRef.current = null;
+        setLoading(false);
+      }
+    }
   }, [notify, t.barcodeInvalid, t.notFound, t.networkError]);
+
+  useEffect(() => () => { lookupRef.current?.abort(); }, []);
 
   useEffect(() => {
     if (!scanning) return;
     let stopped = false;
-    let controls: { stop: () => void } | null = null;
+    let localControls: CameraControls | null = null;
+    setTorchSupported(false);
+    setTorchOn(false);
+
+    const stop = () => {
+      if (localControls) {
+        void Promise.resolve(localControls.stop()).catch(() => {});
+        if (controlsRef.current === localControls) controlsRef.current = null;
+        localControls = null;
+      }
+    };
+
     const start = async () => {
       try {
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        if (stopped || !videoRef.current) return;
         const reader = new BrowserMultiFormatReader();
-        if (!videoRef.current || stopped) return;
-        controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+        const controls = await reader.decodeFromConstraints({
+          audio: false,
+          video: { facingMode: { ideal: facingMode } },
+        }, videoRef.current, (result) => {
           if (!result || stopped) return;
+          const detectedCode = result.getText();
+          // Ignore QR/text and unsupported formats: Open Food Facts expects a numeric product code.
+          if (!/^\d{6,14}$/.test(detectedCode)) return;
           stopped = true;
-          if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(80);
-          controls?.stop();
+          if ("vibrate" in navigator) navigator.vibrate(80);
+          stop();
           setScanning(false);
-          void lookup(result.getText());
+          void lookup(detectedCode);
         });
-        if (stopped) controls?.stop();
-      } catch {
-        if (!stopped) { setScanning(false); notify(t.cameraHint, true); }
+        if (stopped) {
+          void Promise.resolve(controls.stop()).catch(() => {});
+        } else {
+          localControls = controls;
+          controlsRef.current = controls;
+          setTorchSupported(typeof controls.switchTorch === "function");
+        }
+      } catch (error) {
+        if (!stopped) {
+          const name = error instanceof Error ? error.name : "";
+          const message = name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError"
+            ? t.cameraDenied
+            : name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError"
+              ? t.cameraUnavailable
+              : name === "NotReadableError" || name === "TrackStartError" || name === "AbortError"
+                ? t.cameraBusy : t.cameraFailed;
+          setScanning(false);
+          notify(message, true);
+        }
       }
     };
     void start();
-    return () => { stopped = true; controls?.stop(); };
-  }, [scanning, lookup, notify, t.cameraHint]);
+    const onVisibilityChange = () => {
+      // Release the camera when the browser tab moves to the background.
+      if (document.hidden) setScanning(false);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stopped = true;
+      stop();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [scanning, facingMode, lookup, notify, t.cameraDenied, t.cameraUnavailable, t.cameraBusy, t.cameraFailed]);
+
+  const toggleCamera = () => {
+    if (scanning) {
+      setScanning(false);
+      setTorchOn(false);
+      return;
+    }
+    if (!window.isSecureContext) { notify(t.cameraNotSecure, true); return; }
+    if (!navigator.mediaDevices?.getUserMedia) { notify(t.cameraUnavailable, true); return; }
+    setScanning(true);
+  };
+
+  const flipCamera = () => {
+    if (controlsRef.current) void Promise.resolve(controlsRef.current.stop()).catch(() => {});
+    controlsRef.current = null;
+    setTorchOn(false);
+    setFacingMode(current => current === "environment" ? "user" : "environment");
+  };
+
+  const toggleTorch = async () => {
+    const controls = controlsRef.current;
+    if (!controls?.switchTorch) return;
+    try {
+      await controls.switchTorch(!torchOn);
+      setTorchOn(value => !value);
+    } catch { notify(t.torchFailed, true); }
+  };
 
   const scanPhoto = async (file?: File) => {
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      notify(t.photoTooLarge, true);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setScanning(false);
     const url = URL.createObjectURL(file);
     try {
       const { BrowserMultiFormatReader } = await import("@zxing/browser");
       const reader = new BrowserMultiFormatReader();
       const result = await reader.decodeFromImageUrl(url);
       await lookup(result.getText());
-    } catch { notify(t.notFound, true); }
+    } catch { notify(t.photoNoCode, true); }
     finally { URL.revokeObjectURL(url); if (fileRef.current) fileRef.current.value = ""; }
   };
 
@@ -131,13 +236,19 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
           {scanning && <div className="scanner-beam"/>}
         </div>
         <div className="camera-buttons">
-          <button type="button" className={`btn ${scanning ? "btn-outline" : "btn-primary"}`} onClick={() => setScanning(x => !x)}>
+          <button type="button" className={`btn ${scanning ? "btn-outline" : "btn-primary"}`} onClick={toggleCamera}>
             {scanning ? <CameraOff size={18}/> : <Camera size={18}/>} {scanning ? t.stopCam : t.startCam}
           </button>
           <button type="button" className="btn btn-outline" onClick={() => fileRef.current?.click()}><Upload size={17}/>{t.uploadPhoto}</button>
           <input ref={fileRef} type="file" accept="image/*" className="visually-hidden" aria-label={t.uploadPhoto}
             onChange={e => void scanPhoto(e.target.files?.[0])}/>
         </div>
+        {scanning && <div className="camera-options">
+          <button type="button" className="btn btn-outline" onClick={flipCamera}><RefreshCw size={16}/>{t.switchCamera}</button>
+          {torchSupported && <button type="button" className="btn btn-outline" aria-pressed={torchOn} onClick={() => void toggleTorch()}>
+            <Flashlight size={16}/>{t.flashlight} {torchOn ? "✓" : ""}
+          </button>}
+        </div>}
         <p className="subtle-note"><Info size={14}/>{t.cameraHint}</p>
         <div className="separator-label"><span>{t.enterBarcode}</span></div>
         <form className="barcode-form" onSubmit={e => { e.preventDefault(); void lookup(barcode); }}>
@@ -151,7 +262,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
       </aside>
     </div>
 
-    {loading && <div className="card state-panel"><LoaderCircle size={30} className="spin"/><p>{t.searchLoading}</p></div>}
+    {loading && <div className="card state-panel" role="status" aria-live="polite"><LoaderCircle size={30} className="spin"/><p>{t.searchLoading}</p></div>}
     {product && !loading && <div className="card product-card fade-in" id="product-results">
       <div className="card-section-top"><div><span className="eyebrow"><Check size={14}/>{t.foundProduct}</span><h2>{product.name}</h2><p>{[product.brand, product.quantity, product.barcode].filter(Boolean).join(" • ")}</p></div>
         {product.nutriscore && <span className={`nutriscore nutri-${product.nutriscore.toLowerCase()}`}>Nutri-Score {product.nutriscore.toUpperCase()}</span>}</div>

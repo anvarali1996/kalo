@@ -37,6 +37,8 @@ const en = {
   loginTitle: "Welcome back", signupTitle: "Create your account", name: "Your name", email: "Email address", password: "Password", minPassword: "At least 8 characters", submitLogin: "Sign in", submitSignup: "Create account", switchSignup: "New here? Create account", switchLogin: "Already have an account? Sign in", close: "Close", genericError: "Something went wrong. Try again.",
   dbMissing: "Database not configured. Add DATABASE_URL from Neon to enable accounts.", accountSaved: "Signed in: your entries are stored in Neon.",
   about: "About KALO", madeFor: "Built to support healthier habits, not strict rules.",
+  pwaTitle: "Install KALO on your phone", pwaDescription: "Open KALO faster from your home screen.", pwaInstall: "Install app", pwaIOSHint: "On iPhone/iPad: tap Share, then Add to Home Screen.", pwaBrowserHint: "Open your browser menu and choose Install app / Add to Home Screen.", pwaDismiss: "Dismiss install tip",
+  switchCamera: "Switch camera", flashlight: "Flashlight", cameraDenied: "Camera access was denied. Allow the camera for this site in browser settings.", cameraUnavailable: "No usable camera found. Try a photo or enter the code.", cameraBusy: "Camera is in use by another app. Close it and retry.", cameraNotSecure: "Open KALO using HTTPS to use the camera.", cameraFailed: "Cannot start camera. Check permission and try a photo.", torchFailed: "Flashlight is not available on this device.", photoNoCode: "No readable barcode found in this photo. Try a sharper image.", photoTooLarge: "Photo is too large (maximum 10 MB).",
   mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
 };
 
@@ -78,6 +80,8 @@ const uz: Record<Key, string> = {
   loginTitle: "Xush kelibsiz", signupTitle: "Hisob yaratish", name: "Ismingiz", email: "Email", password: "Parol", minPassword: "Kamida 8 ta belgi", submitLogin: "Kirish", submitSignup: "Ro‘yxatdan o‘tish", switchSignup: "Hisob yo‘qmi? Ro‘yxatdan o‘ting", switchLogin: "Hisob bormi? Kiring", close: "Yopish", genericError: "Xatolik yuz berdi. Qayta urinib ko‘ring.",
   dbMissing: "Baza ulanmagan. Hisob yaratish uchun Neon DATABASE_URL ni sozlang.", accountSaved: "Hisobingiz ochiq: ma’lumotlar Neon bazasiga saqlanadi.",
   about: "KALO haqida", madeFor: "Qattiq cheklovlar uchun emas, sog‘lom odatlar uchun.",
+  pwaTitle: "KALO’ni telefonga o‘rnating", pwaDescription: "KALO’ni bosh ekrandan tez oching.", pwaInstall: "O‘rnatish", pwaIOSHint: "iPhone/iPad: Ulashish (Share) → Bosh ekranga qo‘shish (Add to Home Screen).", pwaBrowserHint: "Brauzer menyusidan Install app / Bosh ekranga qo‘shish ni tanlang.", pwaDismiss: "O‘rnatish tavsiyasini yopish",
+  switchCamera: "Kamerani almashtirish", flashlight: "Chiroq", cameraDenied: "Kameraga ruxsat berilmagan. Brauzer sozlamasidan KALO uchun kamerani yoqing.", cameraUnavailable: "Kamera topilmadi. Rasm yuklang yoki kodni kiriting.", cameraBusy: "Kamera boshqa dasturda band. Uni yoping va qayta urinib ko‘ring.", cameraNotSecure: "Kamera uchun KALO’ni HTTPS orqali oching.", cameraFailed: "Kamerani ochib bo‘lmadi. Ruxsatni tekshiring yoki rasm yuklang.", torchFailed: "Bu qurilmada chiroqni yoqib bo‘lmaydi.", photoNoCode: "Rasmda barcode o‘qilmadi. Aniqroq suratni sinang.", photoTooLarge: "Rasm juda katta (maksimum 10 MB).",
   mon: "Du", tue: "Se", wed: "Ch", thu: "Pa", fri: "Ju", sat: "Sh", sun: "Ya",
 };
 
@@ -118,6 +122,8 @@ const ru: Record<Key, string> = {
   loginTitle: "С возвращением", signupTitle: "Создать аккаунт", name: "Ваше имя", email: "Email", password: "Пароль", minPassword: "Не менее 8 символов", submitLogin: "Войти", submitSignup: "Создать аккаунт", switchSignup: "Нет аккаунта? Регистрация", switchLogin: "Есть аккаунт? Войти", close: "Закрыть", genericError: "Произошла ошибка. Попробуйте ещё раз.",
   dbMissing: "База не настроена. Добавьте DATABASE_URL из Neon.", accountSaved: "Вы вошли: данные сохраняются в Neon.",
   about: "О KALO", madeFor: "Для здоровых привычек, а не жёстких ограничений.",
+  pwaTitle: "Установите KALO на телефон", pwaDescription: "Открывайте KALO прямо с главного экрана.", pwaInstall: "Установить", pwaIOSHint: "На iPhone/iPad: Поделиться → На экран «Домой».", pwaBrowserHint: "В меню браузера выберите «Установить приложение» / «На главный экран».", pwaDismiss: "Закрыть подсказку об установке",
+  switchCamera: "Сменить камеру", flashlight: "Фонарик", cameraDenied: "Нет разрешения на камеру. Разрешите доступ для сайта в настройках браузера.", cameraUnavailable: "Камера не найдена. Загрузите фото или введите штрихкод.", cameraBusy: "Камера занята другим приложением. Закройте его и повторите.", cameraNotSecure: "Для камеры откройте KALO по HTTPS.", cameraFailed: "Не удалось запустить камеру. Проверьте доступ или загрузите фото.", torchFailed: "Фонарик не поддерживается этим устройством.", photoNoCode: "На фото не найден читаемый штрихкод. Попробуйте более чёткое изображение.", photoTooLarge: "Фото слишком большое (максимум 10 МБ).",
   mon: "Пн", tue: "Вт", wed: "Ср", thu: "Чт", fri: "Пт", sat: "Сб", sun: "Вс",
 };
 
@@ -158,6 +164,8 @@ const lv: Record<Key, string> = {
   loginTitle: "Laipni lūgts atpakaļ", signupTitle: "Izveidot kontu", name: "Tavs vārds", email: "E-pasts", password: "Parole", minPassword: "Vismaz 8 rakstzīmes", submitLogin: "Pieteikties", submitSignup: "Izveidot kontu", switchSignup: "Nav konta? Reģistrējies", switchLogin: "Jau ir konts? Piesakies", close: "Aizvērt", genericError: "Radās kļūda. Mēģini vēlreiz.",
   dbMissing: "Datubāze nav konfigurēta. Pievieno Neon DATABASE_URL.", accountSaved: "Esi pieteicies: dati glabājas Neon.",
   about: "Par KALO", madeFor: "Veselīgiem ieradumiem, nevis stingriem ierobežojumiem.",
+  pwaTitle: "Uzstādi KALO savā tālrunī", pwaDescription: "Ātri atver KALO no sākuma ekrāna.", pwaInstall: "Uzstādīt", pwaIOSHint: "iPhone/iPad: Kopīgot (Share) → Pievienot sākuma ekrānam.", pwaBrowserHint: "Pārlūka izvēlnē izvēlies Instalēt lietotni / Pievienot sākuma ekrānam.", pwaDismiss: "Aizvērt instalēšanas ieteikumu",
+  switchCamera: "Pārslēgt kameru", flashlight: "Lukturītis", cameraDenied: "Kamerai nav atļaujas. Atļauj piekļuvi šai vietnei pārlūka iestatījumos.", cameraUnavailable: "Kamera nav atrasta. Augšupielādē foto vai ievadi svītrkodu.", cameraBusy: "Kameru izmanto cita lietotne. Aizver to un mēģini vēlreiz.", cameraNotSecure: "Lai izmantotu kameru, atver KALO ar HTTPS.", cameraFailed: "Nevar ieslēgt kameru. Pārbaudi atļaujas vai augšupielādē foto.", torchFailed: "Šajā ierīcē lukturītis nav pieejams.", photoNoCode: "Fotoattēlā nav salasāma svītrkoda. Izmēģini skaidrāku attēlu.", photoTooLarge: "Foto ir pārāk liels (maksimums 10 MB).",
   mon: "Pr", tue: "Ot", wed: "Tr", thu: "Ce", fri: "Pk", sat: "Se", sun: "Sv",
 };
 
