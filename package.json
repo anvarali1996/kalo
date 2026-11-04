@@ -11,6 +11,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "check:pwa": "node scripts/check-pwa.mjs",
     "test": "vitest run"
   },
   "dependencies": {
