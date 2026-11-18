@@ -90,21 +90,27 @@ export const profiles = pgTable("profiles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export function diaryEntryColumns() {
+  return {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    date: varchar("date", { length: 10 }).notNull(),
+    name: varchar("name", { length: 180 }).notNull(),
+    barcode: varchar("barcode", { length: 20 }),
+    grams: real("grams").notNull(),
+    kcal: real("kcal").notNull(),
+    protein: real("protein"),
+    carbs: real("carbs"),
+    fat: real("fat"),
+    image: text("image"),
+    source: varchar("source", { length: 10 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  };
+}
+
 export const diaryEntries = pgTable("diary_entries", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  date: varchar("date", { length: 10 }).notNull(),
-  name: varchar("name", { length: 180 }).notNull(),
-  barcode: varchar("barcode", { length: 20 }),
-  grams: real("grams").notNull(),
-  kcal: real("kcal").notNull(),
-  protein: real("protein"),
-  carbs: real("carbs"),
-  fat: real("fat"),
-  image: text("image"),
-  source: varchar("source", { length: 10 }).notNull(),
+  ...diaryEntryColumns(),
   aiScanId: uuid("ai_scan_id").references(() => aiScans.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [index("diary_user_date_idx").on(t.userId, t.date), index("diary_ai_scan_idx").on(t.aiScanId)]);
 
 export const weightEntries = pgTable("weight_entries", {

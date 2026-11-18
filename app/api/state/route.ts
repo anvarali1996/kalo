@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { database } from "@/db";
-import { diaryEntries, profiles, weightEntries } from "@/db/schema";
+import { standardDiaryEntries as diaryEntries } from "@/db/diary";
+import { profiles, weightEntries } from "@/db/schema";
 import { currentUser } from "@/lib/server-auth";
 import { fail, handleError } from "@/lib/http";
 export const runtime = "nodejs";

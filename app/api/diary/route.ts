@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { database } from "@/db";
-import { diaryEntries } from "@/db/schema";
+import { standardDiaryEntries as diaryEntries } from "@/db/diary";
 import { currentUser } from "@/lib/server-auth";
 import { diarySchema } from "@/lib/validations";
 import { checkOrigin, fail, handleError } from "@/lib/http";
