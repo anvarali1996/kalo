@@ -1,6 +1,8 @@
 import type { Locale } from "./types";
+import { featureTranslations } from "./feature-i18n";
 
 const en = {
+  ...featureTranslations.en,
   navDash: "Overview", navScan: "Food scanner", navDiary: "Food diary", navProfile: "My profile",
   yourSpace: "YOUR SPACE", healthJourney: "Your wellbeing journey, simplified.", greeting: "Your health, in balance.",
   greetingSub: "Small steps make a big difference. Keep going at your own pace.", today: "Today", demo: "Demo mode",
@@ -44,6 +46,7 @@ const en = {
 
 type Key = keyof typeof en;
 const uz: Record<Key, string> = {
+  ...featureTranslations.uz,
   navDash: "Umumiy ko‘rinish", navScan: "Mahsulot skaneri", navDiary: "Ovqat kundaligi", navProfile: "Mening profilim",
   yourSpace: "SIZNING MAKONINGIZ", healthJourney: "Sog‘lom hayot sari qulay yo‘l.", greeting: "Sog‘lom hayot — muvozanatda.",
   greetingSub: "Kichik odatlar katta o‘zgarishlarga olib keladi. O‘z sur’atingizda davom eting.", today: "Bugun", demo: "Demo rejim",
@@ -86,6 +89,7 @@ const uz: Record<Key, string> = {
 };
 
 const ru: Record<Key, string> = {
+  ...featureTranslations.ru,
   navDash: "Обзор", navScan: "Сканер продуктов", navDiary: "Дневник питания", navProfile: "Мой профиль",
   yourSpace: "ВАШЕ ПРОСТРАНСТВО", healthJourney: "Ваш путь к здоровым привычкам.", greeting: "Здоровье — в балансе.",
   greetingSub: "Маленькие шаги приводят к большим изменениям. Двигайтесь в своём темпе.", today: "Сегодня", demo: "Демо-режим",
@@ -128,6 +132,7 @@ const ru: Record<Key, string> = {
 };
 
 const lv: Record<Key, string> = {
+  ...featureTranslations.lv,
   navDash: "Pārskats", navScan: "Produktu skeneris", navDiary: "Uztura dienasgrāmata", navProfile: "Mans profils",
   yourSpace: "TAVA VIDE", healthJourney: "Vienkāršāks ceļš uz veselīgiem ieradumiem.", greeting: "Veselība sākas ar līdzsvaru.",
   greetingSub: "Mazie soļi rada lielas pārmaiņas. Virzies savā tempā.", today: "Šodien", demo: "Demo režīms",

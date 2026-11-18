@@ -1,25 +1,13 @@
-# KALO v1.1 — PWA va mobil barcode yangilanishi
+# KALO — AI food photos, scan packs and password confirmation
 
-Ushbu branch `main` bilan merge qilinmaguncha Vercel production yangilanmaydi. KALO’ning hozirgi Neon bazasi va jadvallari o‘zgarmaydi.
+- AI photo scanning with editable portions, estimated calories/macros, and idempotent meal saves.
+- Five free scans for existing and new users; repeatable one-time Stripe packs of five scans for €4.99 EUR.
+- PostgreSQL credit accounting and transaction history with verified, idempotent webhooks.
+- Translated password confirmation and show/hide controls in Uzbek, English, Russian and Latvian.
+- The existing free Open Food Facts barcode scanner remains unchanged.
 
-## Nima qo‘shildi?
-
-- PWA manifesti, telefon ikonkalari, Android'da o‘rnatish tugmasi va iPhone uchun bosh ekranga qo‘shish ko‘rsatmasi.
-- Service worker: faqat offline sahifa va ikonlarni cache qiladi; foydalanuvchi ma’lumotlari, sahifa va API javoblarini cache qilmaydi. Internet o‘chsa scanner va Neon kundalik ishlamaydi.
-- Mobil skaner: orqa/old kamera, mos qurilmalarda chiroq, yaxshiroq ruxsat xabarlari, rasm va raqam orqali qidirish.
-- O‘zbek, ingliz, rus va latish tillarida yangi matnlar.
-
-## Merge qilishdan avval
-
-```bash
-npm ci
-npm run check:pwa
-npm run typecheck
-npm test
-npm run build
-```
-
-Vercel Preview'da ro‘yxatdan o‘tish/kirish, 3017620422003 barcode, kamera ruxsatlari, old/orqa kamera, rasm orqali qidirish va telefon bosh ekranga o‘rnatishni sinang. `DATABASE_URL` yoki Neon SQL jadvallarini qayta yaratish **kerak emas**. Production `OFF_CONTACT_EMAIL` o‘zgaruvchisini saqlang.
+**Setup and release:** [SETUP-AI.md](SETUP-AI.md) includes exact OpenAI, Stripe, Neon migration and Vercel steps.
+Use `npm run db:migrate` for this release; `db:push` does not install accounting functions or the welcome-credit trigger.
 
 ---
 
@@ -38,7 +26,7 @@ KALO — 4 tilda (o‘zbekcha, inglizcha, ruscha, latishcha) ishlaydigan, telefo
 - **Vazn kuzatuvi:** sana bo‘yicha o‘lchovlar, trend grafigi, profil kaloriyalarining yangilanishi.
 - **Lokal demo:** Neon ulanmagan holda ham ishlaydi; ma’lumot brauzer `localStorage` ida qoladi.
 - **Neon hisobi:** email/parol bilan ro‘yxatdan o‘tish va kirish, bcrypt orqali parol xeshi, 30 kunlik httpOnly cookie-sessiya, foydalanuvchi uchun alohida profil/kundalik/vazn yozuvlari. Demo ma’lumotlari birinchi ro‘yxatdan o‘tishda import qilinadi (250 ta ovqat va 180 ta vazngacha).
-- **4 til:** `lib/i18n.ts` ichida 159 ta interfeys iborasi har bir tilda; tanlangan til shu brauzerda saqlanadi.
+- **4 til:** `lib/i18n.ts` va `lib/feature-i18n.ts` ichida interfeys iboralari har bir tilda; tanlangan til shu brauzerda saqlanadi.
 
 ## 1. Ishga tushirish
 
@@ -60,21 +48,20 @@ npm run dev
 4. PostgreSQL jadvallarini yarating:
 
 ```bash
-npm run db:push
+npm run db:migrate
 npm run dev
 ```
 
-Drizzle sxemasi `db/schema.ts` da. `db:generate` orqali keyinchalik migratsiya fayllarini ham yaratish mumkin. **Muhim:** `db:push` ni ilk o‘rnatishda yoki sxema o‘zgarishini tekshirgandan keyin ishlating; production ma’lumotlariga ehtiyotsiz schema push qilmang.
+Drizzle sxemasi `db/schema.ts` da. `db:generate` orqali keyinchalik migratsiya fayllarini ham yaratish mumkin. **Muhim:** AI va to‘lovlar uchun `npm run db:migrate` shart: u funksiyalar, triggerlar va bepul kreditlarni ham o‘rnatadi. Batafsil: [SETUP-AI.md](SETUP-AI.md).
 
 ## 3. Vercel deploy (keyingi bosqich)
 
-1. `kalo-app` papkasini GitHub repositoryga joylang. `.env.local` va real sirlar GitHubga chiqmasin.
-2. https://vercel.com/new sahifasida GitHub repositoryni import qiling.
-3. Framework avtomatik **Next.js**, Root Directory: `./` (`package.json` joylashgan papka).
-4. **Project Settings → Environment Variables** da `DATABASE_URL` va `OFF_CONTACT_EMAIL` ni kiriting (Production, Preview, Development kerak bo‘lgan muhiti uchun). 
-5. Vercelni deploy qilishdan oldin Neon bazaga **lokal kompyuteringizda** `npm run db:push` ni bajargan bo‘ling.
-6. **Deploy** ni bosing, berilgan `https://...vercel.app` domenni tekshiring. Kamera HTTPS domeningizda ishlaydi.
-7. Test: `/api/health` javobi, ro‘yxatdan o‘tish, barcode `3017620422003`, ovqat yozuvi va log-out/login, telefon kamerasidan skanerlash.
+1. Vercel loyihangizni oching yoki Vercel CLI bilan shu lokal loyihani ulang.
+2. Framework: **Next.js**; Root Directory: `package.json` joylashgan papka.
+3. **Settings → Environment Variables** da [SETUP-AI.md](SETUP-AI.md) jadvalidagi o‘zgaruvchilarni kiriting.
+4. Deploydan oldin kerakli Neon bazada `npm run db:migrate` ni bajaring.
+5. Stripe webhook manzilini sozlang va env o‘zgarishlaridan keyin qayta deploy qiling.
+6. Ro‘yxatdan o‘tish/kirish, bepul barcode, AI skan, Stripe test xaridi va mobil kamerani tekshiring.
 
 Vercel’da alohida Express server shart emas: Next.js `app/api/...` route handlerlari Node.js serverless funksiyalar sifatida ishlaydi. `next.config.ts` avtomatik mos.
 
