@@ -10,7 +10,7 @@ export interface Profile {
 export interface DiaryItem {
   id: string; date: string; name: string; barcode: string | null; grams: number;
   kcal: number; protein: number | null; carbs: number | null; fat: number | null;
-  image: string | null; source: "off" | "manual";
+  image: string | null; source: "off" | "manual" | "ai"; aiScanId?: string | null;
 }
 export interface WeightItem { id: string; date: string; kg: number; }
 export interface Product {

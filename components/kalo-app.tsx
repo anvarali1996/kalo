@@ -12,7 +12,9 @@ import { defaultProfile } from "@/lib/types";
 import { calculatePlan, localDate, sumDiary } from "@/lib/calories";
 import { intlLocale, localeNames, translations } from "@/lib/i18n";
 import { profileSchema } from "@/lib/validations";
-import { ScannerView } from "./scanner";
+import { ScannerHub } from "./scanner-hub";
+import { AuthModal } from "./auth-modal";
+import { PwaInstallBanner, PwaRegistration } from "./pwa";
 
 const todayDate = () => localDate();
 const calendarDisplay = (date: string, locale: Locale, options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }) =>
@@ -62,6 +64,7 @@ export function KaloApp() {
   }, []);
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("checkout")) setView("scanner");
     const savedLocale = localStorage.getItem("kalo_locale");
     if (savedLocale === "en" || savedLocale === "uz" || savedLocale === "ru" || savedLocale === "lv") setLocale(savedLocale);
     const restoreLocal = () => {
@@ -90,7 +93,10 @@ export function KaloApp() {
     })();
   }, []);
 
-  useEffect(() => { if (loaded) localStorage.setItem("kalo_locale", locale); }, [locale, loaded]);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    if (loaded) localStorage.setItem("kalo_locale", locale);
+  }, [locale, loaded]);
   useEffect(() => {
     if (loaded && !user) localStorage.setItem("kalo_demo", JSON.stringify({ profile, diary, weights }));
   }, [loaded, user, profile, diary, weights]);
@@ -132,6 +138,10 @@ export function KaloApp() {
       : { ...item, id: crypto.randomUUID() };
     setDiary(old => [created, ...old]);
     setSelectedDate(item.date);
+  };
+  const addAiEntries = (entries: DiaryItem[]) => {
+    setDiary(old => [...entries, ...old.filter(item => !entries.some(entry => entry.id === item.id))]);
+    if (entries[0]) setSelectedDate(entries[0].date);
   };
   const removeEntry = async (id: string) => {
     try {
@@ -178,17 +188,18 @@ export function KaloApp() {
     {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label={t.close}/>}
     <main className="main-area">
       <div className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={22}/></button>
-        <span className="today-dot"/><span className="topbar-date">{calendarDisplay(today, locale, { weekday: "long", day: "numeric", month: "long" })}</span></div>
+        <span className="today-dot"/><span className="topbar-date">{loaded ? calendarDisplay(today, locale, { weekday: "long", day: "numeric", month: "long" }) : "\u00a0"}</span></div>
         <div className="topbar-right"><div className="language-select"><Globe2 size={17}/><select value={locale} onChange={e => setLocale(e.target.value as Locale)} aria-label={t.language}>
           {(Object.keys(localeNames) as Locale[]).map(l => <option value={l} key={l}>{localeNames[l]}</option>)}</select></div>
           {user ? <button className="profile-chip" onClick={() => switchView("profile")}><span className="avatar">{user.name.charAt(0).toUpperCase()}</span><span className="profile-chip-name">{user.name}</span></button>
             : <button className="btn btn-signin" onClick={() => setAuthOpen("signup")}><UserRound size={17}/><span>{t.signup}</span></button>}
         </div></div>
+      <PwaInstallBanner locale={locale} visible={loaded && view === "dashboard"}/>
       {!loaded && <div className="initial-loading"><LoaderCircle size={29} className="spin"/> KALO</div>}
       {loaded && <>
         {!user && <div className="demo-banner"><span className="demo-pill"><Sparkles size={13}/>{t.demo}</span><span>{t.demoNotice}</span><button onClick={() => setAuthOpen("signup")}>{t.saveAccount}<ArrowRight size={15}/></button></div>}
         {view === "dashboard" && <Dashboard locale={locale} profile={profile} diary={diary} weights={weights} plan={plan} today={today} total={totals.kcal} remaining={remaining} percent={percent} onNavigate={switchView}/ >}
-        {view === "scanner" && <ScannerView locale={locale} addEntry={addEntry} notify={notify} today={today}/ >}
+        {view === "scanner" && <ScannerHub locale={locale} user={user} addEntry={addEntry} onEntriesAdded={addAiEntries} openAuth={() => setAuthOpen("login")} notify={notify} today={today}/ >}
         {view === "diary" && <DiaryView locale={locale} items={dayItems} date={selectedDate} onDate={setSelectedDate} remove={removeEntry} navigate={switchView}/ >}
         {view === "profile" && <ProfileView locale={locale} profile={profile} plan={plan} weights={weights} onSave={saveProfile} onWeight={addWeight}
           user={user} dbConfigured={dbConfigured} openAuth={setAuthOpen} logout={logout}/ >}
@@ -196,6 +207,7 @@ export function KaloApp() {
       </>}
     </main>
     <nav className="mobile-bottom-nav" aria-label="Mobile navigation">{(Object.keys(navIcons) as View[]).map(key => {const Icon = navIcons[key]; return <button key={key} className={view === key ? "active" : ""} onClick={() => switchView(key)}><Icon size={21}/><span>{t[navKeys[key]]}</span></button>;})}</nav>
+    <PwaRegistration/>
     {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <Info size={18}/> : <Check size={18}/>}<span>{toast.text}</span><button onClick={() => setToast(null)} aria-label={t.close}><X size={16}/></button></div>}
     {authOpen && <AuthModal mode={authOpen} setMode={setAuthOpen} locale={locale} dbConfigured={dbConfigured} submit={signIn}/>}
   </div>;
@@ -279,7 +291,7 @@ function DiaryView({locale,items,date,onDate,remove,navigate}:{locale:Locale;ite
       {!items.length ? <div className="empty-diary"><div><ClipboardList size={35}/></div><h3>{t.diaryEmpty}</h3><p>{t.diaryEmptySub}</p><button className="btn btn-primary" onClick={()=>navigate("scanner")}><Plus size={18}/>{t.quickAdd}</button></div>
         : <div className="diary-items">{items.map(item=><div className="diary-item" key={item.id}>
           <div className="diary-item-img">{item.image?<img alt="" src={item.image} referrerPolicy="no-referrer"/>:<Leaf size={24}/>}</div>
-          <div className="diary-item-name"><strong>{item.name}</strong><span>{formatNum(item.grams,locale)} {t.grams} · {item.source==="off"?"Open Food Facts":t.manual}</span></div>
+          <div className="diary-item-name"><strong>{item.name}</strong><span>{formatNum(item.grams,locale)} {t.grams} · {item.source==="off"?"Open Food Facts":item.source==="ai"?t.aiBadge:t.manual}</span></div>
           <div className="diary-item-cal"><strong>{formatNum(item.kcal,locale)} <small>{t.kcal}</small></strong><span>{t.protein}: {item.protein===null?"—":formatNum(item.protein,locale,1)}{t.grams}</span></div>
           <button className="icon-button trash" onClick={()=>void remove(item.id)} aria-label={t.remove} title={t.remove}><Trash2 size={17}/></button>
         </div>)}</div>}
@@ -336,27 +348,6 @@ function ProfileView({locale,profile,plan,weights,onSave,onWeight,user,dbConfigu
       <div className="recent-weights"><h3>{t.weightHistory}</h3>{[...weights].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(w=><div key={w.id}><span>{calendarDisplay(w.date,locale,{day:"numeric",month:"short",year:"numeric"})}</span><strong>{w.kg} {t.kg}</strong></div>)}{!weights.length && <p className="muted">{t.noWeight}</p>}</div></section>
       <section className="card profile-account"><PanelHeading title={t.accountTitle} subtitle={t.accountSub}/><div className="account-display"><span className="account-avatar"><UserRound size={27}/></span><div><strong>{user?.name || t.demo}</strong><small>{user?.email || (dbConfigured ? t.demoNotice : t.dbMissing)}</small></div></div>
         {user ? <button className="btn btn-outline" onClick={()=>void logout()}><LogOut size={17}/>{t.logout}</button>:<div className="account-actions"><button className="btn btn-primary" onClick={()=>openAuth("signup")}><UserRound size={17}/>{t.signup}</button><button className="btn btn-outline" onClick={()=>openAuth("login")}><LogIn size={17}/>{t.login}</button></div>}</section>
-    </div>
-  </div>;
-}
-
-function AuthModal({mode,setMode,locale,dbConfigured,submit}:{mode:"signup"|"login";setMode:(v:"signup"|"login"|null)=>void;locale:Locale;dbConfigured:boolean;submit:(mode:"signup"|"login",input:{name:string;email:string;password:string})=>Promise<void>}) {
-  const t=translations[locale];const [name,setName]=useState("");const [email,setEmail]=useState("");const [password,setPassword]=useState("");
-  const [error,setError]=useState("");const [busy,setBusy]=useState(false);
-  useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==="Escape")setMode(null);};window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key);},[setMode]);
-  const onSubmit = async (e:React.FormEvent) => {e.preventDefault();setError("");setBusy(true);
-    try {await submit(mode,{name,email,password});}catch(e){setError(e instanceof Error?e.message:t.genericError);}finally{setBusy(false);}};
-  return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMode(null);}}>
-    <div className="auth-modal" role="dialog" aria-modal="true" aria-label={mode==="signup"?t.signupTitle:t.loginTitle}>
-      <button className="modal-close" onClick={()=>setMode(null)} aria-label={t.close}><X size={20}/></button><span className="auth-logo">k<span>.</span></span>
-      <h2>{mode==="signup"?t.signupTitle:t.loginTitle}</h2><p>{t.accountSub}</p>
-      {!dbConfigured && <div className="auth-warning"><Info size={17}/>{t.dbMissing}</div>}
-      <form onSubmit={e=>void onSubmit(e)} className="auth-form">{mode==="signup" && <div className="field"><label htmlFor="auth-name">{t.name}</label><input id="auth-name" value={name} minLength={2} maxLength={100} required onChange={e=>setName(e.target.value)}/></div>}
-        <div className="field"><label htmlFor="auth-email">{t.email}</label><input id="auth-email" type="email" autoComplete="email" value={email} required onChange={e=>setEmail(e.target.value)}/></div>
-        <div className="field"><label htmlFor="auth-password">{t.password}</label><input id="auth-password" type="password" autoComplete={mode==="signup"?"new-password":"current-password"} minLength={8} maxLength={72} value={password} required onChange={e=>setPassword(e.target.value)} placeholder={t.minPassword}/></div>
-        {error && <div className="form-error">{error}</div>}
-        <button type="submit" disabled={busy||!dbConfigured} className="btn btn-primary auth-submit">{busy?<LoaderCircle className="spin" size={18}/>:<LogIn size={18}/>} {mode==="signup"?t.submitSignup:t.submitLogin}</button>
-      </form><button className="switch-auth" onClick={()=>{setError("");setMode(mode==="signup"?"login":"signup");}}>{mode==="signup"?t.switchLogin:t.switchSignup}</button>
     </div>
   </div>;
 }

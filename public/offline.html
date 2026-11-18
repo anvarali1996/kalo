@@ -6,16 +6,102 @@
   <meta name="theme-color" content="#285a43" />
   <title>KALO — Internet yo‘q</title>
   <style>
-    * { box-sizing: border-box } body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; font-family: system-ui, -apple-system, sans-serif; color: #285a43; background: #f6f8f3 } main { max-width: 410px; background: #fff; padding: 36px; text-align: center; border: 1px solid #e5ece4; border-radius: 24px; box-shadow: 0 12px 35px #285a4311 } .logo { display: inline-grid; place-items: center; width: 68px; height: 68px; border-radius: 20px; background: #285a43; color: white; font-size: 28px; font-weight: 900 } h1 { font-size: 24px; margin: 24px 0 12px } p { font-size: 15px; color: #5d7567; line-height: 1.6 } button { appearance: none; cursor: pointer; margin-top: 16px; background: #285a43; color: white; border: none; border-radius: 12px; padding: 14px 22px; font-size: 15px; font-weight: 700 }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #285a43;
+      background: #f6f8f3;
+    }
+
+    main {
+      max-width: 410px;
+      padding: clamp(22px, 6vw, 36px);
+      border: 1px solid #e5ece4;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 12px 35px #285a4311;
+      text-align: center;
+    }
+
+    .logo {
+      display: inline-grid;
+      place-items: center;
+      width: 68px;
+      height: 68px;
+      border-radius: 20px;
+      background: #285a43;
+      color: white;
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    h1 { font-size: 24px; margin: 24px 0 12px; }
+    p { font-size: 15px; color: #5d7567; line-height: 1.6; }
+
+    button {
+      appearance: none;
+      cursor: pointer;
+      margin-top: 16px;
+      padding: 14px 22px;
+      border: none;
+      border-radius: 12px;
+      background: #285a43;
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
 <main>
   <span class="logo" aria-hidden="true">K</span>
-  <h1>Internetga ulanib qayta urinib ko‘ring</h1>
-  <p>KALO ovqat kundaligi va mahsulotlarni skanerlash uchun internet talab qiladi. Bu sahifa shaxsiy ma’lumotlaringizni qurilmada keshga saqlamaydi.</p>
-  <p lang="en">You're offline. Reconnect to use your diary and the food scanner.</p>
-  <button type="button" onclick="location.reload()">Qayta urinish / Retry</button>
+  <h1 id="offline-heading">Internetga ulanib qayta urinib ko‘ring</h1>
+  <p id="offline-description">KALO ovqat kundaligi va skaner uchun internet talab qiladi. Bu sahifa shaxsiy ma’lumotlaringizni keshga saqlamaydi.</p>
+  <p id="offline-english" lang="en">You're offline. Reconnect to use your diary and the food scanner.</p>
+  <button id="offline-retry" type="button" onclick="location.reload()">Qayta urinish / Retry</button>
 </main>
+<script>
+  // Use the language saved by KALO without loading the app or an external script.
+  const offlineCopy = {
+    en: {
+      title: "KALO — Offline",
+      heading: "Reconnect and try again",
+      description: "The food diary and scanner need an internet connection. This page does not cache your personal data.",
+      retry: "Retry",
+    },
+    ru: {
+      title: "KALO — Нет интернета",
+      heading: "Подключитесь к интернету и повторите попытку",
+      description: "Для дневника питания и сканера нужен интернет. Эта страница не сохраняет ваши личные данные в кеше.",
+      retry: "Повторить",
+    },
+    lv: {
+      title: "KALO — Nav interneta",
+      heading: "Pieslēdzies internetam un mēģini vēlreiz",
+      description: "Uztura dienasgrāmatai un skenerim vajadzīgs internets. Šī lapa nesaglabā tavus personas datus kešatmiņā.",
+      retry: "Mēģināt vēlreiz",
+    },
+  };
+
+  let language;
+  try { language = localStorage.getItem("kalo_locale"); }
+  catch { /* Keep the default text if storage is unavailable. */ }
+  if (Object.hasOwn(offlineCopy, language)) {
+    const copy = offlineCopy[language];
+    document.documentElement.lang = language;
+    document.title = copy.title;
+    document.getElementById("offline-heading").textContent = copy.heading;
+    document.getElementById("offline-description").textContent = copy.description;
+    document.getElementById("offline-retry").textContent = copy.retry;
+    document.getElementById("offline-english").hidden = true;
+  }
+</script>
 </body>
 </html>

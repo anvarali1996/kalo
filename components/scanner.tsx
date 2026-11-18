@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Barcode, Camera, CameraOff, Check, ChevronRight, Flashlight, Info, LoaderCircle, Package, Plus, RefreshCw, ScanLine, Search, Upload, X } from "lucide-react";
+import { Barcode, Camera, CameraOff, Check, ChevronRight, Flashlight, Info, LoaderCircle, Package, Plus, RefreshCw, ScanLine, Search, Upload } from "lucide-react";
 import type { DiaryItem, Locale, Product } from "@/lib/types";
 import { scale } from "@/lib/calories";
 import { translations } from "@/lib/i18n";
@@ -84,11 +84,11 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
     setTorchOn(false);
 
     const stop = () => {
-      if (localControls) {
-        void Promise.resolve(localControls.stop()).catch(() => {});
-        if (controlsRef.current === localControls) controlsRef.current = null;
-        localControls = null;
-      }
+      const controls = localControls;
+      if (!controls) return;
+      localControls = null;
+      if (controlsRef.current === controls) controlsRef.current = null;
+      void Promise.resolve(controls.stop()).catch(() => {});
     };
 
     const start = async () => {
@@ -96,7 +96,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         if (stopped || !videoRef.current) return;
         const reader = new BrowserMultiFormatReader();
-        const controls = await reader.decodeFromConstraints({
+        localControls = await reader.decodeFromConstraints({
           audio: false,
           video: { facingMode: { ideal: facingMode } },
         }, videoRef.current, (result) => {
@@ -111,11 +111,10 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
           void lookup(detectedCode);
         });
         if (stopped) {
-          void Promise.resolve(controls.stop()).catch(() => {});
+          stop();
         } else {
-          localControls = controls;
-          controlsRef.current = controls;
-          setTorchSupported(typeof controls.switchTorch === "function");
+          controlsRef.current = localControls;
+          setTorchSupported(typeof localControls.switchTorch === "function");
         }
       } catch (error) {
         if (!stopped) {
@@ -156,9 +155,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   };
 
   const flipCamera = () => {
-    if (controlsRef.current) void Promise.resolve(controlsRef.current.stop()).catch(() => {});
-    controlsRef.current = null;
-    setTorchOn(false);
+    // The camera effect stops the current reader before opening the other camera.
     setFacingMode(current => current === "environment" ? "user" : "environment");
   };
 

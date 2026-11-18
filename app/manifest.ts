@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "KALO — Kaloriya va vazn nazorati",
     short_name: "KALO",
-    description: "Kaloriya hisoblash, ovqat kundaligi va barcode skaneri",
+    description: "Kaloriya hisobi, ovqat kundaligi, shtrix-kod skaneri va AI orqali ovqatni aniqlash",
     start_url: "/",
     scope: "/",
     display: "standalone",

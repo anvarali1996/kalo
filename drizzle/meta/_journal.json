@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795032003471,
+      "tag": "0000_existing_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795032382662,
+      "tag": "0001_ai_scans_and_payments",
+      "breakpoints": true
+    }
+  ]
+}

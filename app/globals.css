@@ -2151,7 +2151,9 @@ p {
     background: #fff;
     padding: 31px;
     box-shadow: 0 25px 90px #142c2366;
-    position: relative
+    position: relative;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto
 }
 
 .modal-close {
@@ -2983,12 +2985,6 @@ p {
     font-size: 11px
 }
 
-.pwa-hint-icon {
-    display: grid;
-    place-items: center;
-    color: #5d8b6c
-}
-
 .pwa-dismiss {
     flex: none;
     border: 0;
@@ -3048,5 +3044,623 @@ p {
 
     .camera-options {
         gap: 7px
+    }
+}
+
+/* AI scanning uses the existing cards, fields, buttons and green palette. */
+
+.password-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: fit-content;
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--green);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.field input[aria-invalid=true] {
+    border-color: #a54e3e;
+}
+
+.scanner-tabs {
+    display: flex;
+    gap: 5px;
+    background: #eaf0e9;
+    border: 1px solid var(--line);
+    padding: 5px;
+    border-radius: 13px;
+    width: fit-content;
+    margin-bottom: 22px;
+    max-width: 100%;
+}
+
+.scanner-tabs button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 9px;
+    padding: 11px 18px;
+    background: transparent;
+    color: var(--ink-soft);
+    font-weight: 700;
+    font-size: 13px;
+    min-width: 0;
+}
+
+.scanner-tabs button.active {
+    background: white;
+    color: var(--green);
+    box-shadow: 0 2px 7px #20392f0d;
+}
+
+.ai-view > .subtle-note {
+    margin: 0 0 20px;
+}
+
+.ai-login {
+    text-align: center;
+    padding: 40px 22px;
+}
+
+.ai-login .icon-badge {
+    margin: auto;
+}
+
+.ai-login p {
+    color: var(--ink-soft);
+    max-width: 440px;
+    margin: 12px auto 22px;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.ai-login .btn {
+    margin: auto;
+}
+
+.ai-credit-card {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+}
+
+.ai-credit-balance {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+}
+
+.ai-credit-balance > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ai-credit-balance > div > span {
+    font-size: 12px;
+    color: var(--ink-soft);
+}
+
+.ai-credit-balance strong {
+    font: 800 32px Manrope,sans-serif;
+    line-height: 1.2;
+}
+
+.ai-pack {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 330px;
+}
+
+.ai-pack small {
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.ai-payment-notice,
+.ai-estimate-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #f5efe3;
+    color: #796644;
+    border-radius: 12px;
+    padding: 14px 17px;
+    font-size: 12px;
+    line-height: 1.7;
+    margin-bottom: 18px;
+}
+
+.ai-payment-notice svg,
+.ai-estimate-note svg {
+    flex: none;
+    margin-top: 2px;
+}
+
+.ai-payment-notice p {
+    margin: 0;
+}
+
+.ai-payment-notice.confirmed {
+    background: var(--pale);
+    color: var(--green);
+}
+
+.ai-no-credits {
+    color: #9a5d3e;
+    background: #fcf1e7;
+    padding: 15px 18px;
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.ai-photo-card {
+    padding: 23px;
+    margin-bottom: 20px;
+}
+
+.ai-photo-stage {
+    position: relative;
+    border-radius: 14px;
+    min-height: 250px;
+    background: linear-gradient(130deg,#eff4ec,#e6eee2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px dashed #bbcdb7;
+}
+
+.ai-photo-stage > div:not(.ai-photo-loading) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 35px;
+    gap: 14px;
+    color: #718a70;
+}
+
+.ai-photo-stage p {
+    max-width: 330px;
+    font-size: 13px;
+    line-height: 1.7;
+    margin: 0;
+}
+
+.ai-photo-stage.has-photo {
+    background: #edf1e9;
+    border-style: solid;
+}
+
+.ai-photo-stage > img {
+    display: block;
+    width: 100%;
+    height: 340px;
+    object-fit: contain;
+}
+
+.ai-photo-loading {
+    position: absolute;
+    inset: 0;
+    background: #f5f8f2e8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--green);
+    font-size: 14px;
+    font-weight: 700;
+    backdrop-filter: blur(3px);
+}
+
+.ai-photo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.ai-photo-actions > .btn-primary {
+    margin-left: auto;
+}
+
+.ai-photo-card > .subtle-note {
+    margin-bottom: 0;
+    line-height: 1.7;
+}
+
+.ai-results {
+    padding: 26px;
+    margin: 20px 0;
+}
+
+.ai-estimate-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 6px;
+    background: var(--pale);
+    color: var(--green);
+    padding: 5px 8px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .8px;
+    margin-bottom: 9px;
+}
+
+.ai-estimate-note {
+    background: #f5f7ef;
+    margin: 0 0 14px;
+    color: var(--ink-soft);
+}
+
+.ai-saved {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--green);
+    font-size: 12px;
+}
+
+.ai-food {
+    padding: 19px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.ai-food-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ai-food-number {
+    display: grid;
+    place-items: center;
+    background: var(--pale);
+    color: var(--green);
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ai-food-title h3 {
+    flex: 1;
+    font-size: 15px;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.ai-food-title > span:last-child {
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ai-food-detail {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin: 14px 0 0 38px;
+}
+
+.ai-food-detail > .field {
+    max-width: 150px;
+    flex: 1;
+}
+
+.ai-food-macros {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    flex: 1;
+}
+
+.ai-food-macros > span {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--muted);
+}
+
+.ai-food-macros strong {
+    font-size: 13px;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.ai-meal-total {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    background: #eef4ea;
+    border-radius: 12px;
+    padding: 19px;
+    margin: 20px 0;
+}
+
+.ai-meal-total > div:first-child {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--ink-soft);
+}
+
+.ai-meal-total > div:first-child > strong {
+    font-size: 26px;
+    color: var(--green);
+}
+
+.ai-meal-total small {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.ai-model-note {
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--ink-soft);
+    margin: 15px 0 22px;
+}
+
+.ai-save-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.ai-save-row .field {
+    max-width: 180px;
+}
+
+.ai-save-row > .btn {
+    min-height: 43px;
+}
+
+.ai-history {
+    padding: 20px 24px;
+    margin-top: 20px;
+}
+
+.ai-history summary {
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.ai-history ul {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+
+.ai-history li {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+}
+
+.ai-history li > div {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ai-history li small {
+    font-size: 10px;
+    color: var(--muted);
+}
+
+.ai-purchase-status {
+    font-size: 10px;
+    color: var(--ink-soft);
+    background: #f1f2ed;
+    padding: 5px 8px;
+    border-radius: 6px;
+}
+
+.ai-purchase-status.paid {
+    background: var(--pale);
+    color: var(--green);
+}
+
+.ai-history-pages {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 16px;
+    font-size: 12px;
+}
+
+.ai-history-pages .btn {
+    font-size: 11px;
+    min-height: 35px;
+    padding: 8px 10px;
+}
+
+.ai-error {
+    margin: 16px 0;
+}
+
+.ai-credit-card > .icon-button {
+    flex: none;
+}
+
+.ai-view button:focus-visible,
+.password-toggle:focus-visible {
+    outline: 3px solid #7ba68b;
+    outline-offset: 3px;
+}
+
+.ai-view button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+@media (max-width: 700px) {
+    .scanner-tabs {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+
+    .scanner-tabs button {
+        flex: 1;
+        padding: 11px 8px;
+        font-size: 12px;
+    }
+
+    .ai-credit-card {
+        padding: 18px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .ai-credit-balance {
+        order: 0;
+    }
+
+    .ai-credit-card > .icon-button {
+        order: 1;
+    }
+
+    .ai-pack {
+        order: 2;
+        max-width: none;
+        width: 100%;
+    }
+
+    .ai-pack .btn {
+        width: 100%;
+    }
+
+    .ai-photo-card,
+    .ai-results {
+        padding: 17px;
+    }
+
+    .ai-photo-stage {
+        min-height: 220px;
+    }
+
+    .ai-photo-stage > img {
+        height: 270px;
+    }
+
+    .ai-photo-actions .btn {
+        flex: 1;
+        min-width: 130px;
+        padding: 12px 10px;
+        font-size: 11px;
+    }
+
+    .ai-photo-actions > .btn-primary {
+        flex-basis: 100%;
+        margin: 0;
+    }
+
+    .ai-food-detail {
+        margin-left: 0;
+        gap: 16px;
+    }
+
+    .ai-food-detail > .field {
+        max-width: 110px;
+    }
+
+    .ai-food-title h3 {
+        font-size: 13px;
+    }
+
+    .ai-food-title > span:last-child {
+        font-size: 12px;
+    }
+
+    .ai-food-macros {
+        gap: 10px;
+    }
+
+    .ai-food-macros strong {
+        font-size: 12px;
+    }
+
+    .ai-food-macros > span {
+        font-size: 9px;
+    }
+
+    .ai-meal-total {
+        gap: 16px;
+        padding: 14px;
+    }
+
+    .ai-meal-total > div:first-child > strong {
+        font-size: 23px;
+    }
+
+    .ai-save-row {
+        flex-wrap: wrap;
+    }
+
+    .ai-save-row > .field {
+        max-width: none;
+        flex: 1;
+    }
+
+    .ai-save-row > .btn {
+        flex: 1;
+        min-width: 170px;
+        padding: 12px 10px;
+        font-size: 11px;
+    }
+
+    .ai-history {
+        padding: 18px;
+    }
+
+    .ai-history li {
+        gap: 10px;
+    }
+
+    .ai-history li > strong {
+        font-size: 11px;
+    }
+
+    .ai-estimate-note {
+        font-size: 11px;
+        padding: 12px;
+    }
+
+    .ai-results .panel-heading {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .ai-payment-notice {
+        font-size: 11px;
     }
 }

@@ -1,0 +1,79 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Eye, EyeOff, Info, LoaderCircle, LogIn, X } from "lucide-react";
+import { translations } from "@/lib/i18n";
+import { credentialsSchema, signupFormSchema } from "@/lib/validations";
+import type { Locale } from "@/lib/types";
+
+interface Props {
+  mode: "signup" | "login";
+  setMode: (value: "signup" | "login" | null) => void;
+  locale: Locale;
+  dbConfigured: boolean;
+  submit: (mode: "signup" | "login", input: { name: string; email: string; password: string }) => Promise<void>;
+}
+
+export function AuthModal({ mode, setMode, locale, dbConfigured, submit }: Props) {
+  const t = translations[locale];
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [mismatch, setMismatch] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) setMode(null); };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [setMode, busy]);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(""); setMismatch(false);
+    if (busy) return;
+    const parsed = mode === "signup" ? signupFormSchema.safeParse({ name, email, password, confirmPassword })
+      : credentialsSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      const passwordsDiffer = parsed.error.issues.some(issue => issue.path[0] === "confirmPassword");
+      setMismatch(passwordsDiffer);
+      setError(passwordsDiffer ? t.passwordMismatch : t.formError);
+      return;
+    }
+    setBusy(true);
+    try {
+      // The form-only confirmation field never crosses this boundary.
+      await submit(mode, { name, email: parsed.data.email, password: parsed.data.password });
+    } catch (e) { setError(e instanceof Error ? e.message : t.genericError); }
+    finally { setBusy(false); }
+  };
+
+  return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !busy) setMode(null); }}>
+    <div className="auth-modal" role="dialog" aria-modal="true" aria-label={mode === "signup" ? t.signupTitle : t.loginTitle}>
+      <button className="modal-close" disabled={busy} onClick={() => setMode(null)} aria-label={t.close}><X size={20}/></button>
+      <span className="auth-logo">k<span>.</span></span>
+      <h2>{mode === "signup" ? t.signupTitle : t.loginTitle}</h2><p>{t.accountSub}</p>
+      {!dbConfigured && <div className="auth-warning"><Info size={17}/>{t.dbMissing}</div>}
+      <form onSubmit={e => void onSubmit(e)} className="auth-form">
+        {mode === "signup" && <div className="field"><label htmlFor="auth-name">{t.name}</label>
+          <input id="auth-name" autoComplete="name" value={name} minLength={2} maxLength={100} required disabled={busy} onChange={e => setName(e.target.value)}/></div>}
+        <div className="field"><label htmlFor="auth-email">{t.email}</label><input id="auth-email" type="email" autoComplete="email" value={email} maxLength={254} required disabled={busy} onChange={e => setEmail(e.target.value)}/></div>
+        <div className="field"><label htmlFor="auth-password">{t.password}</label><input id="auth-password" type={showPassword ? "text" : "password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={8} maxLength={72} value={password} required disabled={busy} onChange={e => { setPassword(e.target.value); setError(""); setMismatch(false); }} placeholder={t.minPassword}/></div>
+        {mode === "signup" && <div className="field"><label htmlFor="auth-confirm-password">{t.confirmPassword}</label>
+          <input id="auth-confirm-password" type={showPassword ? "text" : "password"} autoComplete="new-password" maxLength={72} value={confirmPassword} required disabled={busy}
+            aria-invalid={mismatch} aria-describedby={error ? "auth-error" : undefined}
+            onChange={e => { setConfirmPassword(e.target.value); setError(""); setMismatch(false); }}/></div>}
+        <button type="button" className="password-toggle" aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>
+          {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>} {showPassword ? t.hidePassword : t.showPassword}
+        </button>
+        {error && <div className="form-error" id="auth-error" role="alert">{error}</div>}
+        <button type="submit" disabled={busy || !dbConfigured} className="btn btn-primary auth-submit">
+          {busy ? <LoaderCircle className="spin" size={18}/> : <LogIn size={18}/>} {mode === "signup" ? t.submitSignup : t.submitLogin}
+        </button>
+      </form>
+      <button className="switch-auth" disabled={busy} onClick={() => { setError(""); setMismatch(false); setConfirmPassword(""); setShowPassword(false); setMode(mode === "signup" ? "login" : "signup"); }}>{mode === "signup" ? t.switchLogin : t.switchSignup}</button>
+    </div>
+  </div>;
+}

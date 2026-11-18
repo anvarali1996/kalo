@@ -1,6 +1,7 @@
-/* KALO PWA offline fallback (versioned). NO user/account/API data is cached. */
-const CACHE_NAME = "kalo-offline-v2";
-const FILES = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png"];
+/* The offline cache contains the fallback page and static icons. */
+const CACHE_NAME = "kalo-offline-v3";
+const OFFLINE_PAGE = "/offline.html";
+const FILES = [OFFLINE_PAGE, "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -23,10 +24,13 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || request.mode !== "navigate") return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  if (url.origin !== self.location.origin || url.pathname === "/api" || url.pathname.startsWith("/api/")) return;
 
-  // Never cache responses from Next.js pages: they may contain authenticated data.
+  // Keep app pages on the network and use the static fallback for a lost connection.
   event.respondWith(
-    fetch(request).catch(async () => (await caches.match("/offline.html")) || Response.error())
+    fetch(request).catch(async () => {
+      const cache = await caches.open(CACHE_NAME);
+      return (await cache.match(OFFLINE_PAGE)) ?? Response.error();
+    })
   );
 });

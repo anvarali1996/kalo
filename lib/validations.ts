@@ -32,3 +32,9 @@ export const credentialsSchema = z.object({
   password: z.string().min(8).max(72),
 });
 export const registerSchema = credentialsSchema.extend({ name: z.string().trim().min(2).max(100) });
+
+// This schema is used by the form only. Its transform keeps confirmation out of API payloads.
+export const signupFormSchema = registerSchema.extend({ confirmPassword: z.string() })
+  .refine(input => input.password === input.confirmPassword, {
+    path: ["confirmPassword"], message: "passwordMismatch",
+  }).transform(({ confirmPassword: _confirmation, ...credentials }) => credentials);
