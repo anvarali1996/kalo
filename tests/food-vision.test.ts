@@ -8,7 +8,7 @@ const estimate = { containsFood: true, foods: [{ name: "Rice", portionGrams: 200
 const fetchMock = vi.fn();
 function response(value: unknown = estimate, status = "completed", refusal = false) {
   return new Response(JSON.stringify({
-    id: "resp_fixture", object: "response", created_at: 1, status, error: null, incomplete_details: null, model: "gpt-4.1-mini",
+    id: "resp_fixture", object: "response", created_at: 1, status, error: null, incomplete_details: null, model: "gpt-6-luna",
     output: [{ id: "msg_fixture", type: "message", role: "assistant", status: "completed", content: refusal
       ? [{ type: "refusal", refusal: "Cannot analyze this photo" }]
       : [{ type: "output_text", text: JSON.stringify(value), annotations: [] }] }],
@@ -17,7 +17,7 @@ function response(value: unknown = estimate, status = "completed", refusal = fal
 beforeEach(() => {
   fetchMock.mockReset().mockImplementation(async () => response());
   vi.stubGlobal("fetch", fetchMock); vi.stubEnv("OPENAI_API_KEY", "local_test_fixture_only");
-  vi.stubEnv("OPENAI_VISION_MODEL", "gpt-4.1-mini");
+  vi.stubEnv("OPENAI_VISION_MODEL", undefined);
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
@@ -28,10 +28,25 @@ describe("OpenAI Vision SDK integration", () => {
     expect(String(url)).toBe("https://api.openai.com/v1/responses");
     const body = JSON.parse(options.body);
     expect(body.store).toBe(false);
-    expect(body.model).toBe("gpt-4.1-mini");
+    expect(body.model).toBe("gpt-6-luna");
+    expect(body.reasoning).toEqual({ effort: "none" });
     expect(body.instructions).toContain(language);
     expect(body.text.format).toMatchObject({ type: "json_schema", strict: true, name: "food_nutrition_estimate" });
     expect(body.input[0].content[1]).toEqual({ type: "input_image", image_url: image, detail: "high" });
+  });
+  it.each(["gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"])("migrates the old deployment setting %s to Luna", async model => {
+    vi.stubEnv("OPENAI_VISION_MODEL", model);
+    await analyzeFoodPhoto(image, "en");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      model: "gpt-6-luna", reasoning: { effort: "none" },
+    });
+  });
+  it("honors a separately configured model", async () => {
+    vi.stubEnv("OPENAI_VISION_MODEL", "gpt-6.1-terra");
+    await analyzeFoodPhoto(image, "en");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe("gpt-6.1-terra");
+    expect(body).not.toHaveProperty("reasoning");
   });
   it("treats no-food, refusals, and incomplete responses as unsuccessful", async () => {
     fetchMock.mockImplementationOnce(async () => response({ containsFood: false, foods: [], notes: "No food" }));

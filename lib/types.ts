@@ -20,7 +20,7 @@ export interface Product {
   nutriscore: string | null; nova: number | null; ingredients: string | null;
   allergens: string[]; serving: string | null; quantity: string | null;
 }
-export interface SessionUser { id: string; name: string; email: string; }
+export interface SessionUser { id: string; name: string; email: string; isAdmin?: boolean; }
 
 export const defaultProfile: Profile = {
   sex: "female", age: 29, heightCm: 165, weightKg: 74,

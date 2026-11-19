@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Activity, ArrowDownRight, ArrowRight, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight,
   CircleHelp, ClipboardList, Flame, Globe2, Heart, Info, Leaf, LoaderCircle, LogIn, LogOut,
@@ -12,6 +13,7 @@ import { defaultProfile } from "@/lib/types";
 import { calculatePlan, localDate, sumDiary } from "@/lib/calories";
 import { intlLocale, localeNames, translations } from "@/lib/i18n";
 import { profileSchema } from "@/lib/validations";
+import { monitorSession, requestSessionCheck } from "@/lib/session-client";
 import { ScannerHub } from "./scanner-hub";
 import { AuthModal } from "./auth-modal";
 import { PwaInstallBanner, PwaRegistration } from "./pwa";
@@ -27,6 +29,7 @@ const formatNum = (num: number, locale: Locale, digits = 0) => new Intl.NumberFo
 async function api<T>(url: string, method: "GET" | "POST" | "PUT" | "DELETE" = "GET", body?: object): Promise<T> {
   const res = await fetch(url, { method, headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined, credentials: "same-origin", cache: "no-store" });
+  if (res.status === 401 && !url.startsWith("/api/auth/")) requestSessionCheck();
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json as T;
@@ -44,6 +47,7 @@ export function KaloApp() {
   const [weights, setWeights] = useState<WeightItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [user, setUser] = useState<SessionUser | null>(null);
+  const activeUserId = useRef<string | null>(null);
   const [dbConfigured, setDbConfigured] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [authOpen, setAuthOpen] = useState<"login" | "signup" | null>(null);
@@ -63,35 +67,65 @@ export function KaloApp() {
     window.setTimeout(() => setToast(current => current?.text === text ? null : current), 4500);
   }, []);
 
+  const restoreDemo = useCallback(() => {
+    let stored: Partial<StateResponse> = {};
+    try {
+      stored = JSON.parse(localStorage.getItem("kalo_demo") || "{}") ?? {};
+    } catch { /* Ignore broken local demo data. */ }
+    const validProfile = profileSchema.safeParse(stored.profile);
+    setProfile(validProfile.success ? validProfile.data : defaultProfile);
+    setDiary(Array.isArray(stored.diary) ? stored.diary : []);
+    setWeights(Array.isArray(stored.weights) ? stored.weights : []);
+  }, []);
+
+  const clearAccount = useCallback(() => {
+    activeUserId.current = null;
+    setUser(null);
+    restoreDemo();
+  }, [restoreDemo]);
+
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has("checkout")) setView("scanner");
     const savedLocale = localStorage.getItem("kalo_locale");
     if (savedLocale === "en" || savedLocale === "uz" || savedLocale === "ru" || savedLocale === "lv") setLocale(savedLocale);
-    const restoreLocal = () => {
-      try {
-        const stored = localStorage.getItem("kalo_demo");
-        if (!stored) return;
-        const d = JSON.parse(stored) as { profile?: Profile; diary?: DiaryItem[]; weights?: WeightItem[] };
-        if (d.profile && profileSchema.safeParse(d.profile).success) setProfile(d.profile);
-        if (Array.isArray(d.diary)) setDiary(d.diary);
-        if (Array.isArray(d.weights)) setWeights(d.weights);
-      } catch { /* Ignore broken local demo data */ }
-    };
-    restoreLocal();
+    restoreDemo();
+    let cancelled = false;
     void (async () => {
       try {
         const status = await api<{ user: SessionUser | null; databaseConfigured: boolean }>("/api/auth/me");
+        if (cancelled) return;
         setDbConfigured(status.databaseConfigured);
         if (status.user) {
           const data = await api<StateResponse>("/api/state");
+          if (cancelled) return;
+          activeUserId.current = status.user.id;
           setUser(status.user);
-          if (data.profile) setProfile(data.profile);
+          setProfile(data.profile ?? defaultProfile);
           setDiary(data.diary); setWeights(data.weights);
         }
       } catch { /* Demo works without any database */ }
-      finally { setLoaded(true); }
+      finally { if (!cancelled) setLoaded(true); }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [restoreDemo]);
+
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (!userId) return;
+    return monitorSession(nextUser => {
+      if (activeUserId.current !== userId) return;
+      if (!nextUser) {
+        clearAccount();
+        setAuthOpen("login");
+        notify(t.sessionEnded, true);
+      } else if (nextUser.id !== userId) {
+        // Another tab in this browser changed accounts. Load its data from scratch.
+        window.location.reload();
+      } else {
+        setUser(current => current?.isAdmin === nextUser.isAdmin ? current : nextUser);
+      }
+    });
+  }, [userId, clearAccount, notify, t.sessionEnded]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -104,6 +138,7 @@ export function KaloApp() {
   const switchView = (next: View) => { setView(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const refreshAccount = async (signedInUser: SessionUser) => {
     const data = await api<StateResponse>("/api/state");
+    activeUserId.current = signedInUser.id;
     setUser(signedInUser);
     setProfile(data.profile ?? defaultProfile);
     setDiary(data.diary); setWeights(data.weights);
@@ -125,27 +160,24 @@ export function KaloApp() {
   const logout = async () => {
     try { await api("/api/auth/logout", "POST"); }
     catch (e) { notify(e instanceof Error ? e.message : t.genericError, true); return; }
-    setUser(null);
-    try {
-      const local = JSON.parse(localStorage.getItem("kalo_demo") || "{}");
-      setProfile(profileSchema.safeParse(local.profile).success ? local.profile : defaultProfile);
-      setDiary(Array.isArray(local.diary) ? local.diary : []);
-      setWeights(Array.isArray(local.weights) ? local.weights : []);
-    } catch { setProfile(defaultProfile); setDiary([]); setWeights([]); }
+    clearAccount();
   };
   const addEntry = async (item: Omit<DiaryItem, "id">) => {
     const created = user ? (await api<{ entry: DiaryItem }>("/api/diary", "POST", item)).entry
       : { ...item, id: crypto.randomUUID() };
+    if (activeUserId.current !== userId) return;
     setDiary(old => [created, ...old]);
     setSelectedDate(item.date);
   };
   const addAiEntries = (entries: DiaryItem[]) => {
+    if (!userId || activeUserId.current !== userId) return;
     setDiary(old => [...entries, ...old.filter(item => !entries.some(entry => entry.id === item.id))]);
     if (entries[0]) setSelectedDate(entries[0].date);
   };
   const removeEntry = async (id: string) => {
     try {
       if (user) await api(`/api/diary/${id}`, "DELETE");
+      if (activeUserId.current !== userId) return;
       setDiary(old => old.filter(x => x.id !== id));
     } catch (e) { notify(e instanceof Error ? e.message : t.genericError, true); }
   };
@@ -153,12 +185,14 @@ export function KaloApp() {
     const valid = profileSchema.safeParse(next);
     if (!valid.success) throw new Error(t.formError);
     if (user) await api("/api/profile", "PUT", next);
+    if (activeUserId.current !== userId) return;
     setProfile(next); notify(t.saved);
   };
   const addWeight = async (date: string, kg: number) => {
     if (!Number.isFinite(kg) || kg < 30 || kg > 400) throw new Error(t.formError);
     let newItem: WeightItem = { id: crypto.randomUUID(), date, kg };
     if (user) newItem = (await api<{ item: WeightItem }>("/api/weights", "POST", { date, kg })).item;
+    if (activeUserId.current !== userId) return;
     const latest = [...weights].sort((a,b) => b.date.localeCompare(a.date))[0];
     setWeights(old => [newItem, ...old.filter(x => x.date !== date)]);
     if (!latest || date >= latest.date) setProfile(old => ({ ...old, weightKg: kg }));
@@ -347,7 +381,10 @@ function ProfileView({locale,profile,plan,weights,onSave,onWeight,user,dbConfigu
     <div className="profile-grid lower-profile"><section className="card weigh-form"><PanelHeading title={t.weightCheck} subtitle={t.weightCheckSub}/><form className="weigh-fields" onSubmit={e=>void submitWeight(e)}><div className="field"><label htmlFor="weigh-value">{t.currentWeight} ({t.kg})</label><input id="weigh-value" type="number" min="30" max="400" step="0.1" required value={weight} onChange={e=>setWeight(e.target.value)}/></div><div className="field"><label htmlFor="weigh-date">{t.today}</label><input id="weigh-date" type="date" max={todayDate()} required value={weighDate} onChange={e=>setWeighDate(e.target.value)}/></div><button disabled={busy} type="submit" className="btn btn-primary"><Plus size={17}/>{t.logWeight}</button></form>
       <div className="recent-weights"><h3>{t.weightHistory}</h3>{[...weights].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(w=><div key={w.id}><span>{calendarDisplay(w.date,locale,{day:"numeric",month:"short",year:"numeric"})}</span><strong>{w.kg} {t.kg}</strong></div>)}{!weights.length && <p className="muted">{t.noWeight}</p>}</div></section>
       <section className="card profile-account"><PanelHeading title={t.accountTitle} subtitle={t.accountSub}/><div className="account-display"><span className="account-avatar"><UserRound size={27}/></span><div><strong>{user?.name || t.demo}</strong><small>{user?.email || (dbConfigured ? t.demoNotice : t.dbMissing)}</small></div></div>
-        {user ? <button className="btn btn-outline" onClick={()=>void logout()}><LogOut size={17}/>{t.logout}</button>:<div className="account-actions"><button className="btn btn-primary" onClick={()=>openAuth("signup")}><UserRound size={17}/>{t.signup}</button><button className="btn btn-outline" onClick={()=>openAuth("login")}><LogIn size={17}/>{t.login}</button></div>}</section>
+        {user ? <div className="account-actions">
+          {user.isAdmin && <Link href="/admin" className="btn btn-primary" prefetch={false}><ShieldCheck size={17}/>{t.adminTitle}</Link>}
+          <button className="btn btn-outline" onClick={()=>void logout()}><LogOut size={17}/>{t.logout}</button>
+        </div>:<div className="account-actions"><button className="btn btn-primary" onClick={()=>openAuth("signup")}><UserRound size={17}/>{t.signup}</button><button className="btn btn-outline" onClick={()=>openAuth("login")}><LogIn size={17}/>{t.login}</button></div>}</section>
     </div>
   </div>;
 }

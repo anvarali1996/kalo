@@ -12,8 +12,10 @@ Five more scans cost **€4.99 EUR**, as a one-time Stripe Checkout payment.
    Food Facts settings. Never commit `.env.local` or use `NEXT_PUBLIC_` for keys.
 3. In the [OpenAI platform](https://platform.openai.com/api-keys), create a project
    API key and enable API billing. Set `OPENAI_API_KEY` in `.env.local`.
-4. Set `OPENAI_VISION_MODEL=gpt-4.1-mini` (the default). A replacement model must
-   support image inputs, Responses API, and structured JSON outputs.
+4. `OPENAI_VISION_MODEL` defaults to `gpt-6-luna`, OpenAI's recommended
+   replacement for GPT-4.1 mini. A custom model must support image inputs and
+   structured outputs through the Responses API. Updated KALO also maps the old
+   GPT-4.1 mini model name and snapshot to Luna. [OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
 5. Set `APP_URL=http://localhost:3000` for local Checkout return URLs.
 
 Photo files are resized on the device, limited and checked again on the server,
@@ -93,7 +95,7 @@ environments you deploy:
 | `DATABASE_URL` | The intended Neon pooled connection string |
 | `OFF_CONTACT_EMAIL` | Your existing Open Food Facts contact email |
 | `OPENAI_API_KEY` | A server-side OpenAI project API key with API billing |
-| `OPENAI_VISION_MODEL` | `gpt-4.1-mini` |
+| `OPENAI_VISION_MODEL` | Optional. Defaults to `gpt-6-luna` |
 | `STRIPE_SECRET_KEY` | Live key for Production; test key for Preview/Development |
 | `STRIPE_WEBHOOK_SECRET` | Signing secret for that environment's webhook endpoint |
 | `APP_URL` | Exact public HTTPS origin, e.g. `https://kalo.example.com` |
@@ -130,6 +132,30 @@ calls or production database changes are required by the test suite.
 
 Before release, exercise an actual food photo with your OpenAI key and a real
 Stripe test Checkout with webhook delivery. These require configured credentials.
+
+## Admin panel and device sessions
+
+1. Sign in to the KALO account that should administer the deployment.
+2. Open `/api/auth/me` on the same KALO domain and copy the UUID in `user.id`.
+3. In Vercel Project Settings → Environment Variables, set the server variable
+   `KALO_ADMIN_USER_IDS` to that UUID for the target environment. For multiple
+   admins, enter the UUIDs separated by commas. For local development, use
+   `.env.local`.
+4. Deploy the updated code. Open **My profile → Admin panel** or `/admin` while
+   signed in. The panel shows user names, emails, registration dates, active
+   session start times, and scan balances. It also shows whether the scanner's
+   database and provider variables are configured.
+
+Signing in on a new device replaces the account's previous server session.
+The previous device loses account access as soon as the sign-in completes and
+its screen returns to sign-in on the next session check, within about 15 seconds
+while the app is visible or when it comes back into focus. This uses the
+existing session table.
+
+If **AI database** shows **Needs setup**, confirm that `DATABASE_URL` points
+to the same Neon database and branch as the Vercel deployment, then apply
+`npm run db:migrate` using the steps above. Existing accounts and the free
+barcode scanner work during AI setup.
 
 ## Changed files
 

@@ -25,6 +25,7 @@ import { POST as scanPhoto } from "@/app/api/ai/scans/route";
 import { POST as webhook } from "@/app/api/stripe/webhook/route";
 import { POST as checkout } from "@/app/api/stripe/checkout/route";
 import { GET as credits } from "@/app/api/ai/credits/route";
+import { GET as adminUsers } from "@/app/api/admin/users/route";
 import { GET as getScan } from "@/app/api/ai/scans/[id]/route";
 import { POST as saveScan } from "@/app/api/ai/scans/[id]/diary/route";
 
@@ -73,6 +74,20 @@ beforeEach(async () => {
 afterAll(async () => { await pg.close(); vi.unstubAllEnvs(); });
 
 describe("Authenticated scan API", () => {
+  it("exposes scanner readiness and the actual credit balance to an authorized admin", async () => {
+    vi.stubEnv("KALO_ADMIN_USER_IDS", userId);
+    try {
+      const response = await adminUsers(new NextRequest("http://localhost:3000/api/admin/users"));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        scannerSetup: { database: true, openAi: true },
+        users: [{ id: userId, scanCredits: 5 }],
+      });
+    } finally {
+      vi.stubEnv("KALO_ADMIN_USER_IDS", "");
+    }
+  });
+
   it("requires login before inspecting a photo or calling OpenAI", async () => {
     mocks.currentUser.mockResolvedValue(null);
     expect((await scanPhoto(post("/api/ai/scans", photoInput()))).status).toBe(401);

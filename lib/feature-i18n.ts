@@ -1,4 +1,7 @@
+import { accountTranslations } from "./account-i18n";
+
 const en = {
+  ...accountTranslations.en,
   confirmPassword: "Repeat password", passwordMismatch: "The passwords do not match. Please try again.", showPassword: "Show passwords", hidePassword: "Hide passwords",
   barcodeTab: "Barcode · free", photoTab: "AI food photo", aiTitle: "A photo. A little more clarity.",
   aiSubtitle: "Take a photo of your meal to estimate foods, portions and nutrition.", aiBadge: "AI ESTIMATE",
@@ -26,6 +29,7 @@ const en = {
 
 type FeatureKey = keyof typeof en;
 const uz: Record<FeatureKey, string> = {
+  ...accountTranslations.uz,
   confirmPassword: "Parolni takrorlang", passwordMismatch: "Parollar mos kelmadi. Qayta tekshiring.", showPassword: "Parollarni ko‘rsatish", hidePassword: "Parollarni yashirish",
   barcodeTab: "Shtrix-kod · bepul", photoTab: "AI ovqat surati", aiTitle: "Bir surat — ovqatingiz haqida ko‘proq.",
   aiSubtitle: "Ovqatni, porsiyani va oziqaviy qiymatni taxmin qilish uchun suratga oling.", aiBadge: "AI TAXMINI",
@@ -52,6 +56,7 @@ const uz: Record<FeatureKey, string> = {
 };
 
 const ru: Record<FeatureKey, string> = {
+  ...accountTranslations.ru,
   confirmPassword: "Повторите пароль", passwordMismatch: "Пароли не совпадают. Проверьте и попробуйте снова.", showPassword: "Показать пароли", hidePassword: "Скрыть пароли",
   barcodeTab: "Штрихкод · бесплатно", photoTab: "AI фото еды", aiTitle: "Одно фото — больше ясности.",
   aiSubtitle: "Сфотографируйте еду, чтобы оценить состав блюда, порции и пищевую ценность.", aiBadge: "ОЦЕНКА AI",
@@ -78,6 +83,7 @@ const ru: Record<FeatureKey, string> = {
 };
 
 const lv: Record<FeatureKey, string> = {
+  ...accountTranslations.lv,
   confirmPassword: "Atkārto paroli", passwordMismatch: "Paroles nesakrīt. Pārbaudi un mēģini vēlreiz.", showPassword: "Rādīt paroles", hidePassword: "Slēpt paroles",
   barcodeTab: "Svītrkods · bez maksas", photoTab: "AI ēdiena foto", aiTitle: "Viens foto — vairāk skaidrības.",
   aiSubtitle: "Nofotografē maltīti, lai aptuveni noteiktu produktus, porcijas un uzturvērtību.", aiBadge: "AI APLĒSE",

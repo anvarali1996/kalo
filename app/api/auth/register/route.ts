@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { database, hasDatabase } from "@/db";
 import { users } from "@/db/schema";
-import { createSession, COOKIE_NAME, cookieOptions } from "@/lib/server-auth";
+import { createSession, COOKIE_NAME, cookieOptions, publicSessionUser } from "@/lib/server-auth";
 import { registerSchema } from "@/lib/validations";
 import { checkOrigin, fail, handleError } from "@/lib/http";
 export const runtime = "nodejs";
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       .onConflictDoNothing().returning({ id: users.id, name: users.name, email: users.email });
     if (!user) return fail("Email already registered.", 409);
     const token = await createSession(user.id);
-    const response = NextResponse.json({ user }, { status: 201 });
+    const response = NextResponse.json({ user: publicSessionUser(user) }, { status: 201, headers: { "Cache-Control": "no-store" } });
     response.cookies.set(COOKIE_NAME, token, cookieOptions);
     return response;
   } catch (e) { return handleError(e); }

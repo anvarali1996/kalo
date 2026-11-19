@@ -53,7 +53,10 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
       if (!signal?.aborted) { setAccount(data); setAccountError(""); }
       return data;
     } catch (e) {
-      if (!signal?.aborted) setAccountError(e instanceof Error ? e.message : t.genericError);
+      if (!signal?.aborted) {
+        setAccount(null);
+        setAccountError(e instanceof Error ? e.message : t.genericError);
+      }
       return null;
     } finally { if (!signal?.aborted) setRefreshing(false); }
   }, [user, page, locale, t.genericError]);

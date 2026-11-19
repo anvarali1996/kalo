@@ -4,6 +4,10 @@ import { hasDatabase } from "@/db";
 import { handleError } from "@/lib/http";
 export const runtime = "nodejs";
 export async function GET() {
-  try { return NextResponse.json({ user: await currentUser(), databaseConfigured: hasDatabase() }); }
+  try {
+    return NextResponse.json({ user: await currentUser(), databaseConfigured: hasDatabase() }, {
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
   catch (e) { return handleError(e); }
 }
