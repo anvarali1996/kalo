@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
     const input = credentialsSchema.parse(await req.json());
     const [user] = await database().select().from(users).where(eq(users.email, input.email)).limit(1);
     if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) return fail("Invalid email or password.", 401);
-    const token = await createSession(user.id);
+    const token = await createSession(user.id, user.passwordHash);
+    if (!token) return fail("Invalid email or password.", 401);
     const response = NextResponse.json({ user: publicSessionUser(user) }, { headers: { "Cache-Control": "no-store" } });
     response.cookies.set(COOKIE_NAME, token, cookieOptions);
     return response;

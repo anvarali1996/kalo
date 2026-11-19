@@ -1,13 +1,31 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { readMigrationFiles } from "drizzle-orm/migrator";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 
-export async function migrateTestDatabase(db: PGlite) {
-  const baseline = await readFile(new URL("../drizzle/0000_existing_schema.sql", import.meta.url), "utf8");
-  const features = await readFile(new URL("../drizzle/0001_ai_scans_and_payments.sql", import.meta.url), "utf8");
-  await db.exec(`BEGIN; ${baseline} COMMIT;`);
-  await db.exec(`BEGIN; ${features} COMMIT;`);
+export async function migrateTestDatabase(db: PGlite, from = 0, to?: number) {
+  const migrations = readMigrationFiles({ migrationsFolder: fileURLToPath(new URL("../drizzle/", import.meta.url)) });
+  for (const migration of migrations.slice(from, to)) {
+    await db.transaction(async tx => {
+      for (const statement of migration.sql.map(s => s.trim()).filter(Boolean)) await tx.exec(statement);
+    });
+  }
 }
+
+type PreparedSql = { sql: string; params: unknown[] };
+type BatchQuery = { toSQL?: () => PreparedSql; getQuery?: () => PreparedSql };
+
+// Neon executes these statements in one transaction. Run the same generated
+// SQL and return the database rows when exercising the routes in PGlite.
+export const testBatch = (pg: PGlite) => async (queries: BatchQuery[]) => pg.transaction(async tx => {
+  const results = [];
+  for (const query of queries) {
+    const statement = query.toSQL?.() ?? query.getQuery?.();
+    if (!statement) throw new Error("Cannot compile test query");
+    results.push(await tx.query(statement.sql, statement.params));
+  }
+  return results;
+});
 
 export async function createTestUser(db: PGlite) {
   const id = randomUUID();

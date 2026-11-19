@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
     const [user] = await db.insert(users).values({ name: input.name, email: input.email, passwordHash })
       .onConflictDoNothing().returning({ id: users.id, name: users.name, email: users.email });
     if (!user) return fail("Email already registered.", 409);
-    const token = await createSession(user.id);
+    const token = await createSession(user.id, passwordHash);
+    if (!token) return fail("Please sign in again.", 409);
     const response = NextResponse.json({ user: publicSessionUser(user) }, { status: 201, headers: { "Cache-Control": "no-store" } });
     response.cookies.set(COOKIE_NAME, token, cookieOptions);
     return response;

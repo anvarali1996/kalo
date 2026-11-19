@@ -1,117 +1,81 @@
-# AI food photos and scan purchases
+# Set up Kalo Balance
 
-The barcode scanner remains free. AI photos require an account, start with five
-free scans, and use one credit only after a valid estimate is saved on the server.
-Five more scans cost **€4.99 EUR**, as a one-time Stripe Checkout payment.
+Basic includes 6 AI photo scans per UTC calendar month. Pro costs €7.99 EUR per month and includes 120 scans per paid Stripe billing period. One-time packs cost €2.99 EUR for 20 scans and €5.99 EUR for 50. Barcode scanning is free.
 
-## 1. Local environment and OpenAI
+Monthly scans are used first and expire at the end of the applicable period. Purchased scans and unused credits carried forward from the former plan have no expiration date. A paid Pro period replaces the Basic allowance while it is active. The current Basic month's prior usage resumes when that Pro period ends.
 
-1. Use Node.js 20.9 or newer and run `npm ci`.
-2. If you do not already have `.env.local`, copy `.env.example` to `.env.local`.
-   Otherwise add the new variables without replacing your existing Neon or Open
-   Food Facts settings. Never commit `.env.local` or use `NEXT_PUBLIC_` for keys.
-3. In the [OpenAI platform](https://platform.openai.com/api-keys), create a project
-   API key and enable API billing. Set `OPENAI_API_KEY` in `.env.local`.
-4. `OPENAI_VISION_MODEL` defaults to `gpt-6-luna`, OpenAI's recommended
-   replacement for GPT-4.1 mini. A custom model must support image inputs and
-   structured outputs through the Responses API. Kalo Balance also maps the old
-   GPT-4.1 mini model name and snapshot to Luna. [OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
-5. Set `APP_URL=http://localhost:3000` for local Checkout return URLs.
+## 1. Neon and OpenAI
 
-Photo files are resized on the device, limited and checked again on the server,
-and sent to OpenAI with `store: false`. Kalo Balance stores a request digest and the
-nutrition estimate, not the original photo. Food names and estimate notes are
-requested in the user's selected language.
+1. Use Node.js 20.9 or later and run `npm ci`. Add the variables from `.env.example` to `.env.local`.
+2. In Neon, use a separate development branch for testing. Put its connection string in `DATABASE_URL` in `.env.local`. From the project folder on macOS or Linux, run `env -u DATABASE_URL npm run db:migrate` so the command reads the value from the file. The checked-in SQL is applied in order, with each migration and its journal entry committed in one transaction.
+3. Migration `0002_plans_and_passwords` keeps users, sessions, diaries, payments, and original remaining scan balances. It adds monthly usage, Stripe billing records, and password reset storage. If the database predates AI scanning, migration `0001` first applies its original welcome-credit backfill. The balances present when `0002` runs are carried forward.
+   Migration `0003_pro_repricing` stores the amount and scan allowance for each Pro invoice. Existing €9.99 invoices keep their original 100-scan allowance, usage and refunds.
+4. Set `OPENAI_API_KEY` to an OpenAI project key with API billing enabled. `OPENAI_VISION_MODEL` is optional and defaults to `gpt-6-luna`. Use a model that supports image inputs and structured outputs in the Responses API. [OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
 
-## 2. Apply Neon migrations
+Use `npm run db:migrate` for these releases. It installs the accounting and password functions, triggers, and backfills. Keep development and production database connections in their intended environments. [Neon connection guide](https://neon.com/docs/connect/connect-from-any-app)
 
-1. Keep your existing `DATABASE_URL` pointing at the intended Neon database.
-   Use a Neon branch/backup to rehearse the migration before production.
-2. From the project directory run:
+## 2. Stripe test environment
+
+1. In the Stripe Dashboard, switch to a test sandbox. Create the following three EUR prices and put each `price_…` identifier in its matching variable. For Pro, select a flat recurring price, billed once per month.
+
+   | Variable | Stripe price |
+   | --- | --- |
+   | `STRIPE_PRO_PRICE_ID` | €7.99 EUR every month |
+   | `STRIPE_PACK20_PRICE_ID` | €2.99 EUR one-time |
+   | `STRIPE_PACK50_PRICE_ID` | €5.99 EUR one-time |
+
+2. Add the sandbox secret key as `STRIPE_SECRET_KEY`. Enable card payments for Checkout. Set `APP_URL=http://localhost:3000` for local testing. In Stripe **Settings → Billing → Customer portal**, enable payment method updates, invoice history, and cancellation at the end of the billing period. Leave price and quantity changes, trial options, and cancellation offers disabled. The app uses the default portal configuration unless `STRIPE_PORTAL_CONFIGURATION_ID` is set to a dedicated `bpc_…` configuration. [Stripe Customer Portal](https://docs.stripe.com/customer-management/configure-portal)
+3. In one terminal, sign in to your Stripe sandbox with `stripe login`, then start a listener for the exact events below. Copy the listener's `whsec_…` value into `STRIPE_WEBHOOK_SECRET` in `.env.local`. The listener and Dashboard endpoint each have their own signing secret. [Stripe CLI listener](https://docs.stripe.com/cli/listen)
 
    ```bash
-   npm run db:migrate
+   stripe listen \
+     --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed,charge.refunded,refund.created,refund.updated \
+     --forward-to http://localhost:3000/api/stripe/webhook
    ```
 
-3. `0000_existing_schema.sql` safely adopts databases previously created by
-   `db:push`: existing tables, indexes, constraints and diary data are preserved.
-   `0001_ai_scans_and_payments.sql` adds the scan/payment tables, one nullable
-   diary column, accounting functions, and the welcome-credit trigger. It grants
-   **all existing users five credits** and grants future users five on signup.
-4. Repeating `db:migrate` skips applied migrations. The runner uses the Drizzle
-   journal and executes each migration and its history entry in a single Neon
-   transaction, including the backfill. Do not run `db:push` for these features:
-   it does not install the accounting functions, triggers, or backfill.
-5. Never edit an applied migration. Generate a new migration for future changes.
-   Run migrations once as a release step, before deploying the new app.
+4. Start `npm run dev` in a second terminal. Sign in, open **Food scanner → AI food photo → Plans and credits**, and complete a pack purchase and a Pro subscription on separate test accounts. Use Stripe's test card `4242 4242 4242 4242` with a future expiry and any valid CVC. Verify the new balance after the webhook arrives. Open **Manage billing** to schedule cancellation. Issue a sandbox refund and confirm the purchase or invoice shows its refund. [Stripe test cards](https://docs.stripe.com/testing#cards) · [Stripe subscription events](https://docs.stripe.com/billing/subscriptions/webhooks)
+5. Test renewals using the sandbox, or a Stripe test clock if needed. A clock advances Stripe's timestamps while the app compares them with actual UTC. Automated tests cover the expired-period boundary, failed renewal, and successful retry.
 
-No production migration was run automatically during implementation.
+Checkout redirects display payment progress. Billing fulfillment requires a signed webhook and current Stripe payment data, including a successful Stripe PaymentIntent for a Pro invoice. Failed renewals do not issue a new allowance. Cancellation retains the paid allowance through the period end. A successful refund revokes the corresponding unspent scans, with partial refunds prorated and rounded down when calculating the number to revoke. Past scans and diary entries remain recorded. Legacy paid and pending pack payments continue to be recognized. Stripe's hosted pages use English for the Uzbek app locale.
 
-## 3. Stripe Checkout and webhooks
+## 3. Resend password recovery
 
-1. Open the [Stripe Dashboard](https://dashboard.stripe.com/) in **test mode**.
-   Copy the secret API key from Developers / API keys into `STRIPE_SECRET_KEY`.
-   The hosted Checkout flow needs **no publishable key and no Stripe Price ID**.
-   The server creates a fixed EUR 499-cent line item for five scans. No subscription,
-   adjustable quantity, promotions, automatic tax, or adaptive currency conversion
-   is enabled. Configure your available payment methods in Stripe Dashboard.
-2. For local webhook delivery, install and authenticate the Stripe CLI, then run:
+1. In Resend, add a sending domain you control and publish its required DNS records. Wait for Resend to verify it. Keep click tracking disabled on the sender so reset links use the application's address directly. [Resend domains](https://resend.com/docs/dashboard/domains/introduction)
+2. Create a sending API key and set `RESEND_API_KEY`. Set `RESEND_FROM_EMAIL` to a sender on that verified domain, for example `"Kalo Balance <accounts@example.com>"`. Use the exact site origin as `APP_URL`. For localhost, open the reset email on the same computer as the app. [Resend Send Email API](https://resend.com/docs/api-reference/emails/send-email)
+3. From **Sign in**, select **Forgot password?** and request a link for a test account. The email link opens `/reset-password`. Set a new password, then verify old password login and the link are rejected. In **My profile → Change password**, try a wrong current password before testing a successful change.
 
-   ```bash
-   stripe login
-   stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired --forward-to localhost:3000/api/stripe/webhook
-   ```
+Only the newest reset link can be redeemed. It lasts 30 minutes, and the database stores its hash. Forgot-password responses acknowledge known, unknown, and rate-limited inboxes the same way. Limits include three reset emails per inbox per hour, 12 reset-link requests per address per hour, 20 redemption attempts per address per 15 minutes, and five authenticated change attempts per account per 15 minutes.
 
-3. Copy the listener's `whsec_...` value to `STRIPE_WEBHOOK_SECRET`, then start or
-   restart the app with `npm run dev`. The CLI listener must stay running.
-4. Sign in, open **Food scanner → AI food photo**, and buy a pack. Use Stripe's
-   test card `4242 4242 4242 4242`, any future expiry and any three-digit CVC.
-   A real Checkout session created by this app is required; a generic CLI test
-   event has no matching purchase record and cannot grant credits.
-5. Confirm that purchase history shows **Paid** and the balance increases by five.
-   Returning to `?checkout=success` alone never grants scans. If a webhook is late,
-   the UI waits and lets you refresh. Test a second pack and resend the same event
-   from Stripe: the balance must only increase once per paid purchase.
-6. For production, activate your Stripe account, use the **live** secret key, and
-   create a live webhook event destination in Developers / Workbench → Webhooks:
-   `https://YOUR_DOMAIN/api/stripe/webhook`. Subscribe to the four events above.
-   Use snapshot events with API version **2026-10-28.endive**, matching the installed
-   Stripe SDK. Copy that endpoint's signing secret into the production
-   `STRIPE_WEBHOOK_SECRET`; it differs from the CLI and test endpoint secrets.
+## 4. Vercel settings and manual release
 
-The webhook verifies the original request-body signature and timestamp, retrieves
-the Checkout session from Stripe, verifies paid status, ownership, pack, amount,
-currency and line items, then atomically records the event, purchase, credit and
-ledger entry. Event, session, purchase and payment-intent uniqueness protect
-against replay and duplicate credits. Unpaid/failed/expired payments grant none.
-
-## 4. Vercel settings and release
-
-In **Project → Settings → Environment Variables**, configure these for the
-environments you deploy:
+Set these in **Project → Environment Variables** for the correct target environment. Keep sandbox Stripe credentials and development Neon in Preview, and use the matching live configuration only in Production.
 
 | Variable | Value |
 | --- | --- |
-| `DATABASE_URL` | The intended Neon pooled connection string |
-| `OFF_CONTACT_EMAIL` | Your existing Open Food Facts contact email |
-| `OPENAI_API_KEY` | A server-side OpenAI project API key with API billing |
+| `DATABASE_URL` | Intended Neon branch connection string |
+| `APP_URL` | Exact app origin, such as `https://kalo-steel.vercel.app` |
+| `OPENAI_API_KEY` | Server-side OpenAI project key |
 | `OPENAI_VISION_MODEL` | Optional. Defaults to `gpt-6-luna` |
-| `STRIPE_SECRET_KEY` | Live key for Production; test key for Preview/Development |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret for that environment's webhook endpoint |
-| `APP_URL` | Exact public HTTPS origin, e.g. `https://kalo.example.com` |
+| `STRIPE_SECRET_KEY` | Stripe secret key for this environment |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for this environment's webhook |
+| `STRIPE_PRO_PRICE_ID` | €7.99 EUR monthly Pro Price ID |
+| `STRIPE_PACK20_PRICE_ID` | One-time EUR 20-scan Price ID |
+| `STRIPE_PACK50_PRICE_ID` | One-time EUR 50-scan Price ID |
+| `STRIPE_PORTAL_CONFIGURATION_ID` | Optional Stripe Portal configuration ID |
+| `RESEND_API_KEY` | Resend sending key |
+| `RESEND_FROM_EMAIL` | Sender on your verified domain |
+| `KALO_ADMIN_USER_IDS` | Existing comma-separated Kalo administrator UUIDs |
+| `OFF_CONTACT_EMAIL` | Existing Open Food Facts contact email |
 
-Use separate Neon branches and Stripe test credentials for Preview. `APP_URL`
-must match the deployment users open; use a stable preview domain and matching
-test webhook destination when testing payments on Vercel. Vercel Deployment
-Protection must allow Stripe to reach the webhook endpoint. Redeploy after
-changing variables. Keys are read at runtime and are never sent to the browser.
+For a hosted environment, create a **Stripe Workbench → Webhooks** destination with snapshot events at `{APP_URL}/api/stripe/webhook` and select exactly the events in the local listener command. Use the destination's own signing secret. Rehearse the migration on a Neon branch first. When ready for release, put the connection string for the exact Vercel Production Neon branch in local `.env.local` and confirm the selected branch before manually running `env -u DATABASE_URL npm run db:migrate`. Then deploy the updated app so the new variables are loaded, and restore your local development connection string. [Stripe event destinations](https://docs.stripe.com/webhooks) · [Vercel environment variables](https://vercel.com/docs/environment-variables/managing-environment-variables)
 
-Apply `npm run db:migrate` to each target database before the app deployment. Do
-not add live migrations to `next build`. Configure a Node.js 22 or 24 Vercel
-runtime. The scan route allows up to 90 seconds; its OpenAI call times out after
-60 seconds, and abandoned scan slots expire after two minutes without a charge.
+For an existing Pro rollout, create a new €7.99 EUR recurring monthly Price under the Pro product and use its ID in `STRIPE_PRO_PRICE_ID` for the new deployment. Open Checkouts at the earlier price can complete until they expire. If any are still open at cutover, expire them in Stripe or let them expire within an hour. [Stripe prices](https://docs.stripe.com/products-prices/manage-prices#create-a-price) · [Checkout expiry](https://docs.stripe.com/api/checkout/sessions/expire)
 
-## 5. Verification
+After deploying, move existing Pro subscriptions by replacing the price on each existing subscription item, keeping quantity 1 and its billing date, with prorations disabled (`proration_behavior=none`). The paid period keeps its original terms. The first verified €7.99 renewal grants 120 scans. [Stripe subscription price changes](https://docs.stripe.com/billing/subscriptions/change-price) · [Stripe subscription update options](https://docs.stripe.com/api/subscriptions/update)
+
+The admin list remains available through **My profile → Admin panel**. To find your user UUID, sign in on the intended Kalo domain and open `/api/auth/me`. Copy `user.id` into `KALO_ADMIN_USER_IDS`. The admin scanner setup indicator checks the schema and provider settings, and existing single-device sign-in remains in effect.
+
+## 5. Local verification
 
 ```bash
 npm run typecheck
@@ -120,54 +84,4 @@ npm run check:pwa
 npm run build
 ```
 
-If a restricted local environment blocks Turbopack's CSS worker from opening a
-local socket, use `npm run build -- --webpack` for the production build.
-
-The automated tests run the actual SQL migrations and accounting functions in
-PGlite (PostgreSQL in WASM), exercise API routes with real Stripe test signatures
-and mocked external API responses, and render the password form in all four
-languages. Queued parallel requests, replays, credit exhaustion, failures, stale
-leases, user isolation, and idempotent diary saves are covered. No live paid API
-calls or production database changes are required by the test suite.
-
-Before release, exercise an actual food photo with your OpenAI key and a real
-Stripe test Checkout with webhook delivery. These require configured credentials.
-
-## Admin panel and device sessions
-
-1. Sign in to the Kalo Balance account that should administer the deployment.
-2. Open `/api/auth/me` on the app’s domain and copy the UUID in `user.id`.
-3. In Vercel Project Settings → Environment Variables, set the server variable
-   `KALO_ADMIN_USER_IDS` to that UUID for the target environment. For multiple
-   admins, enter the UUIDs separated by commas. For local development, use
-   `.env.local`.
-4. Deploy the updated code. Open **My profile → Admin panel** or `/admin` while
-   signed in. The panel shows user names, emails, registration dates, active
-   session start times, and scan balances. It also shows whether the scanner's
-   database and provider variables are configured.
-
-Signing in on a new device replaces the account's previous server session.
-The previous device loses account access as soon as the sign-in completes and
-its screen returns to sign-in on the next session check, within about 15 seconds
-while the app is visible or when it comes back into focus. This uses the
-existing session table.
-
-If **AI database** shows **Needs setup**, confirm that `DATABASE_URL` points
-to the same Neon database and branch as the Vercel deployment, then apply
-`npm run db:migrate` using the steps above. Existing accounts and the free
-barcode scanner work during AI setup.
-
-## Changed files
-
-| Area | Files |
-| --- | --- |
-| UI | `components/ai-food-scanner.tsx`, `components/scanner-hub.tsx`, `components/auth-modal.tsx`, `components/kalo-app.tsx`, `app/globals.css` |
-| AI routes | `app/api/ai/credits/route.ts`, `app/api/ai/scans/route.ts`, `app/api/ai/scans/[id]/route.ts`, `app/api/ai/scans/[id]/diary/route.ts` |
-| Payments | `app/api/stripe/checkout/route.ts`, `app/api/stripe/webhook/route.ts`, `lib/stripe.ts` |
-| Server/client helpers | `lib/food-vision.ts`, `lib/food-photo-bytes.ts`, `lib/scan-accounting.ts`, `lib/ai-http.ts`, `lib/client-api.ts`, `lib/prepare-food-photo.ts` |
-| Types, validation, languages | `lib/ai-types.ts`, `lib/ai-validation.ts`, `lib/types.ts`, `lib/validations.ts`, `lib/feature-i18n.ts`, `lib/i18n.ts` |
-| Database | `db/schema.ts`, `drizzle/0000_existing_schema.sql`, `drizzle/0001_ai_scans_and_payments.sql`, `drizzle/meta/0000_snapshot.json`, `drizzle/meta/0001_snapshot.json`, `drizzle/meta/_journal.json`, `scripts/migrate.mjs` |
-| Tests | `tests/database-helpers.ts`, `tests/scan-accounting.test.ts`, `tests/ai-routes.test.ts`, `tests/food-vision.test.ts`, `tests/ai-scanner-ui.test.tsx`, `tests/password-confirmation.test.tsx`, `vitest.config.ts` |
-| Setup | `package.json`, `package-lock.json`, `.env.example`, `README.md`, `SETUP-AI.md` |
-
-The existing barcode scanner component and product lookup route were not modified.
+Tests apply the migrations to an isolated PostgreSQL-compatible database and exercise the route handlers with mocked Stripe, OpenAI, and Resend calls. For a failed OpenAI analysis on a deployed app, search Vercel logs for `KALO OpenAI scan failed`.

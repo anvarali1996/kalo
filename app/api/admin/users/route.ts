@@ -2,11 +2,12 @@ import type { NextRequest } from "next/server";
 import { count, desc, eq, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { database } from "@/db";
-import { scanAccounts, sessions, users } from "@/db/schema";
+import { sessions, users } from "@/db/schema";
 import { isAdminUser } from "@/lib/admin-access";
 import { currentUser } from "@/lib/server-auth";
 import { isAiDatabaseReady } from "@/lib/ai-setup";
 import { privateJson } from "@/lib/ai-http";
+import { availableBillingProducts } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 const pageSize = 25;
@@ -39,11 +40,10 @@ export async function GET(req: NextRequest) {
     const selection = db.select({
       id: users.id, name: users.name, email: users.email, createdAt: users.createdAt,
       sessionStartedAt: sql<Date | null>`(${activeSession})`.mapWith(sessions.createdAt),
-      scanCredits: scanReady ? scanAccounts.credits : sql<number | null>`null`,
+      scanCredits: scanReady ? sql<number | null>`(kalo_scan_balance(${users.id})->>'credits')::integer` : sql<number | null>`null`,
     }).from(users);
-    const withCredits = scanReady ? selection.leftJoin(scanAccounts, eq(scanAccounts.userId, users.id)) : selection;
     const [rows, [summary]] = await Promise.all([
-      withCredits.where(filter).orderBy(desc(users.createdAt), desc(users.id))
+      selection.where(filter).orderBy(desc(users.createdAt), desc(users.id))
         .limit(pageSize + 1).offset((page - 1) * pageSize),
       db.select({ total: count() }).from(users).where(filter),
     ]);
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       scannerSetup: {
         database: scanReady,
         openAi: Boolean(process.env.OPENAI_API_KEY),
-        stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.APP_URL),
+        stripe: availableBillingProducts().length === 3,
       },
     });
   } catch (error) {

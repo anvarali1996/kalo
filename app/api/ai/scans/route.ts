@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     try {
       const result = await analyzeFoodPhoto(input.image, input.locale);
       const completed = await completeScan(user.id, input.requestId, token, result);
+      if (completed.status === "no_credits") throw new AiError("aiNoCredits", 402);
       if (completed.status !== "succeeded") throw new AiError("aiRetryScan", 409);
       return privateJson({ id: input.requestId, result: completed.result, credits: completed.credits, saved: completed.saved });
     } catch (error) {

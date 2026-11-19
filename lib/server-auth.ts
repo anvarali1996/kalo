@@ -11,18 +11,22 @@ export const COOKIE_NAME = "kalo_session";
 export const SESSION_SECONDS = 60 * 60 * 24 * 30;
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, passwordHash: string) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_SECONDS * 1000);
   const db = database();
   // Neon runs the batch in one transaction. Lock the account before reading or
   // replacing its sessions so simultaneous sign-ins cannot leave two active tokens.
-  await db.batch([
+  const passwordUnchanged = and(eq(users.id, userId), eq(users.passwordHash, passwordHash));
+  const [, , inserted] = await db.batch([
     db.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update"),
-    db.delete(sessions).where(eq(sessions.userId, userId)),
-    db.insert(sessions).values({ userId, tokenHash: hashToken(token), expiresAt }),
+    db.delete(sessions).where(and(eq(sessions.userId, userId),
+      exists(db.select({ id: users.id }).from(users).where(passwordUnchanged)))),
+    db.execute<{ id: string }>(sql`insert into sessions (user_id, token_hash, expires_at)
+      select ${users.id}, ${hashToken(token)}, ${expiresAt.toISOString()}::timestamptz
+      from ${users} where ${passwordUnchanged} returning id`),
   ]);
-  return token;
+  return inserted.rows.length ? token : null;
 }
 
 export function publicSessionUser({ id, name, email }: SessionUser): SessionUser {
@@ -34,9 +38,14 @@ export const cookieOptions = {
   sameSite: "lax" as const, path: "/", maxAge: SESSION_SECONDS,
 };
 
+export async function currentSessionHash() {
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
+  return token ? hashToken(token) : null;
+}
+
 export async function currentUser(): Promise<SessionUser | null> {
   if (!hasDatabase()) return null;
-  const token = (await cookies()).get(COOKIE_NAME)?.value;
+  const token = await currentSessionHash();
   if (!token) return null;
   const db = database();
   const latest = alias(sessions, "latest_session");
@@ -44,7 +53,7 @@ export async function currentUser(): Promise<SessionUser | null> {
     .where(eq(latest.userId, sessions.userId)).orderBy(desc(latest.createdAt), desc(latest.id)).limit(1);
   const [user] = await db.select({ id: users.id, name: users.name, email: users.email })
     .from(sessions).innerJoin(users, eq(sessions.userId, users.id))
-    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date()),
+    .where(and(eq(sessions.tokenHash, token), gt(sessions.expiresAt, new Date()),
       eq(sessions.id, latestSessionId))).limit(1);
   return user ? publicSessionUser(user) : null;
 }

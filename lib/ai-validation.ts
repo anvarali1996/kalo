@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { dateSchema } from "./validations";
+import { billingProducts } from "./pricing";
 
 export const MAX_PHOTO_BYTES = 2_500_000;
 export const MAX_SCAN_BODY_BYTES = 3_500_000;
@@ -26,7 +27,7 @@ export const photoScanSchema = z.object({
     .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/),
 }).strict();
 
-export const checkoutSchema = z.object({ requestId: requestIdSchema, locale: localeSchema }).strict();
+export const checkoutSchema = z.object({ requestId: requestIdSchema, locale: localeSchema, product: z.enum(billingProducts) }).strict();
 export const savePhotoScanSchema = z.object({
   date: dateSchema,
   portions: z.array(z.number().min(1).max(5000)).min(1).max(12),

@@ -9,6 +9,7 @@ import { AiFoodScanner } from "./ai-food-scanner";
 
 interface Props {
   locale: Locale;
+  initialTab: "barcode" | "photo";
   user: SessionUser | null;
   today: string;
   addEntry: (entry: Omit<DiaryItem, "id">) => Promise<void>;
@@ -18,8 +19,7 @@ interface Props {
 }
 
 export function ScannerHub(props: Props) {
-  const [tab, setTab] = useState<"barcode" | "photo">(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("checkout") ? "photo" : "barcode");
+  const [tab, setTab] = useState(props.initialTab);
   const t = translations[props.locale];
   return <>
     <div className="scanner-tabs" role="tablist" aria-label={t.navScan}>

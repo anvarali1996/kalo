@@ -17,7 +17,8 @@ import { intlLocale, localeNames, translations } from "@/lib/i18n";
 import { profileSchema } from "@/lib/validations";
 import { monitorSession, requestSessionCheck } from "@/lib/session-client";
 import { ScannerHub } from "./scanner-hub";
-import { AuthModal } from "./auth-modal";
+import { AuthModal, type AuthMode } from "./auth-modal";
+import { PasswordForm } from "./password-form";
 import { PwaInstallBanner, PwaRegistration } from "./pwa";
 
 const todayDate = () => localDate();
@@ -44,6 +45,7 @@ const navKeys = { dashboard: "navDash", scanner: "navScan", diary: "navDiary", p
 export function KaloApp() {
   const [locale, setLocale] = useState<Locale>("uz");
   const [view, setView] = useState<View>("dashboard");
+  const [scannerEntry, setScannerEntry] = useState<"barcode" | "photo">("barcode");
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [diary, setDiary] = useState<DiaryItem[]>([]);
   const [weights, setWeights] = useState<WeightItem[]>([]);
@@ -52,7 +54,7 @@ export function KaloApp() {
   const activeUserId = useRef<string | null>(null);
   const [dbConfigured, setDbConfigured] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [authOpen, setAuthOpen] = useState<"login" | "signup" | null>(null);
+  const [authOpen, setAuthOpen] = useState<AuthMode | null>(null);
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const t = translations[locale];
@@ -87,7 +89,18 @@ export function KaloApp() {
   }, [restoreDemo]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has("checkout")) setView("scanner");
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("checkout") || params.has("billing")) {
+      setScannerEntry("photo");
+      setView("scanner");
+    }
+    const auth = params.get("auth");
+    if (auth === "login" || auth === "forgot") {
+      setAuthOpen(auth);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("auth");
+      window.history.replaceState(window.history.state, "", url);
+    }
     const savedLocale = localStorage.getItem("kalo_locale");
     if (savedLocale === "en" || savedLocale === "uz" || savedLocale === "ru" || savedLocale === "lv") setLocale(savedLocale);
     restoreDemo();
@@ -137,7 +150,7 @@ export function KaloApp() {
     if (loaded && !user) localStorage.setItem("kalo_demo", JSON.stringify({ profile, diary, weights }));
   }, [loaded, user, profile, diary, weights]);
 
-  const switchView = (next: View) => { setView(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const switchView = (next: View) => { setScannerEntry("barcode"); setView(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const refreshAccount = async (signedInUser: SessionUser) => {
     const data = await api<StateResponse>("/api/state");
     activeUserId.current = signedInUser.id;
@@ -237,10 +250,12 @@ export function KaloApp() {
       {loaded && <>
         {!user && <div className="demo-banner"><span className="demo-pill"><Sparkles size={13}/>{t.demo}</span><span>{t.demoNotice}</span><button onClick={() => setAuthOpen("signup")}>{t.saveAccount}<ArrowRight size={15}/></button></div>}
         {view === "dashboard" && <Dashboard locale={locale} diary={diary} weights={weights} plan={plan} today={today} total={totals.kcal} remaining={remaining} percent={percent} onNavigate={switchView}/ >}
-        {view === "scanner" && <ScannerHub locale={locale} user={user} addEntry={addEntry} onEntriesAdded={addAiEntries} openAuth={() => setAuthOpen("login")} notify={notify} today={today}/ >}
+        {view === "scanner" && <ScannerHub locale={locale} initialTab={scannerEntry} user={user} addEntry={addEntry} onEntriesAdded={addAiEntries} openAuth={() => setAuthOpen("login")} notify={notify} today={today}/ >}
         {view === "diary" && <DiaryView locale={locale} items={dayItems} date={selectedDate} onDate={setSelectedDate} remove={removeEntry} navigate={switchView}/ >}
         {view === "profile" && <ProfileView locale={locale} profile={profile} plan={plan} weights={weights} onSave={saveProfile} onWeight={addWeight}
-          user={user} dbConfigured={dbConfigured} openAuth={setAuthOpen} logout={logout}/ >}
+          user={user} dbConfigured={dbConfigured} openAuth={setAuthOpen} logout={logout}
+          openBilling={() => { switchView("scanner"); setScannerEntry("photo"); }}
+          onPasswordChanged={() => { clearAccount(); setAuthOpen("login"); notify(t.passwordChanged); }}/ >}
         <footer className="page-footer"><span>© 2026 {appName}</span></footer>
       </>}
     </main>
@@ -366,10 +381,11 @@ function makeProfileDraft(profile: Profile): ProfileDraft {
 
 const readNumberInput = (value: string) => value === "" ? NaN : Number(value);
 
-function ProfileView({locale,profile,plan,weights,onSave,onWeight,user,dbConfigured,openAuth,logout}:{
+function ProfileView({locale,profile,plan,weights,onSave,onWeight,user,dbConfigured,openAuth,logout,openBilling,onPasswordChanged}:{
   locale:Locale; profile:Profile; plan:ReturnType<typeof calculatePlan>; weights:WeightItem[];
   onSave:(p:Profile)=>Promise<void>; onWeight:(date:string,kg:number)=>Promise<void>;
   user:SessionUser|null; dbConfigured:boolean; openAuth:(mode:"signup"|"login")=>void;logout:()=>Promise<void>;
+  openBilling:()=>void; onPasswordChanged:()=>void;
 }) {
   const t=translations[locale];
   const [draft,setDraft]=useState(() => makeProfileDraft(profile));
@@ -421,10 +437,15 @@ function ProfileView({locale,profile,plan,weights,onSave,onWeight,user,dbConfigu
     <div className="profile-grid lower-profile"><section className="card weigh-form"><PanelHeading title={t.weightCheck} subtitle={t.weightCheckSub}/><form className="weigh-fields" onSubmit={e=>void submitWeight(e)}><div className="field"><label htmlFor="weigh-value">{t.currentWeight} ({t.kg})</label><input id="weigh-value" type="number" inputMode="decimal" min="30" max="400" step="0.1" required value={weight} onChange={e=>setWeight(e.target.value)}/></div><div className="field"><label htmlFor="weigh-date">{t.today}</label><input id="weigh-date" type="date" max={todayDate()} required value={weighDate} onChange={e=>setWeighDate(e.target.value)}/></div><button disabled={busy} type="submit" className="btn btn-primary"><Plus size={17}/>{t.logWeight}</button></form>
       <div className="recent-weights"><h3>{t.weightHistory}</h3>{[...weights].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(w=><div key={w.id}><span>{calendarDisplay(w.date,locale,{day:"numeric",month:"short",year:"numeric"})}</span><strong>{w.kg} {t.kg}</strong></div>)}{!weights.length && <p className="muted">{t.noWeight}</p>}</div></section>
       <section className="card profile-account"><PanelHeading title={t.accountTitle} subtitle={t.accountSub}/><div className="account-display"><span className="account-avatar"><UserRound size={27}/></span><div><strong>{user?.name || t.demo}</strong><small>{user?.email || (dbConfigured ? t.demoNotice : t.dbMissing)}</small></div></div>
-        {user ? <div className="account-actions">
+        {user ? <><div className="account-actions">
           {user.isAdmin && <Link href="/admin" className="btn btn-primary" prefetch={false}><ShieldCheck size={17}/>{t.adminTitle}</Link>}
+          <button className="btn btn-outline" type="button" onClick={openBilling}>{t.billingPlans}</button>
           <button className="btn btn-outline" onClick={()=>void logout()}><LogOut size={17}/>{t.logout}</button>
-        </div>:<div className="account-actions"><button className="btn btn-primary" onClick={()=>openAuth("signup")}><UserRound size={17}/>{t.signup}</button><button className="btn btn-outline" onClick={()=>openAuth("login")}><LogIn size={17}/>{t.login}</button></div>}</section>
+        </div><details className="profile-password" key={user.id}>
+          <summary>{t.passwordChangeTitle}</summary>
+          <p>{t.passwordChangeNote}</p>
+          <PasswordForm locale={locale} mode="change" onSuccess={onPasswordChanged}/>
+        </details></>:<div className="account-actions"><button className="btn btn-primary" onClick={()=>openAuth("signup")}><UserRound size={17}/>{t.signup}</button><button className="btn btn-outline" onClick={()=>openAuth("login")}><LogIn size={17}/>{t.login}</button></div>}</section>
     </div>
   </div>;
 }

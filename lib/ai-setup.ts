@@ -9,6 +9,9 @@ export async function isAiDatabaseReady(db: ReturnType<typeof database>) {
       and to_regclass('public.scan_purchases') is not null
       and to_regclass('public.scan_credit_transactions') is not null
       and to_regclass('public.stripe_webhook_events') is not null
+      and to_regprocedure('public.kalo_scan_balance(uuid)') is not null
+      and to_regprocedure('public.kalo_reserve_pro_checkout(uuid, uuid, text, text)') is not null
+      and to_regprocedure('public.kalo_record_pro_invoice(text, text, text, text, text, timestamptz, timestamptz, timestamptz, timestamptz, integer, integer)') is not null
       and to_regprocedure('public.kalo_begin_scan(uuid, uuid, text, uuid)') is not null
       and to_regprocedure('public.kalo_complete_scan(uuid, uuid, uuid, jsonb)') is not null
       and to_regprocedure('public.kalo_fail_scan(uuid, uuid, uuid)') is not null

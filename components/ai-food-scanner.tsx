@@ -9,10 +9,19 @@ import { scaleEstimatedFood } from "@/lib/ai-types";
 import { scanApi, ScanApiError } from "@/lib/client-api";
 import { prepareFoodPhoto } from "@/lib/prepare-food-photo";
 import { savePhotoScanSchema } from "@/lib/ai-validation";
+import type { BillingProduct } from "@/lib/pricing";
+import { BillingPlans, formatEuro } from "./billing-plans";
 
 interface Props {
   locale: Locale; user: SessionUser | null; today: string; openAuth: () => void;
   onEntriesAdded: (entries: DiaryItem[]) => void; notify: (message: string, error?: boolean) => void;
+}
+
+function confirmedCheckout(account: CreditsResponse, params: URLSearchParams) {
+  const purchase = params.get("purchase");
+  const pro = params.get("pro");
+  return (pro !== null && account.proCheckoutId === pro) ||
+    (purchase !== null && account.purchases.some(p => p.id === purchase && p.status === "paid"));
 }
 
 export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, notify }: Props) {
@@ -30,15 +39,18 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
   const [portions, setPortions] = useState<string[]>([]);
   const [date, setDate] = useState(today);
   const [saving, setSaving] = useState(false);
-  const [buying, setBuying] = useState(false);
+  const [buying, setBuying] = useState<BillingProduct | "portal" | null>(null);
   const [error, setError] = useState("");
   const [payment, setPayment] = useState<"pending" | "confirmed" | "cancel" | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const request = useRef<{ id: string; locale: Locale } | null>(null);
-  const checkoutRequest = useRef<{ id: string; locale: Locale } | null>(null);
+  const checkoutRequests = useRef<Partial<Record<BillingProduct, { id: string; locale: Locale }>>>({});
   const scanStorageKey = user ? `kalo_ai_scan:${user.id}` : "";
   const number = (n: number) => new Intl.NumberFormat(intlLocale[locale], { maximumFractionDigits: 1 }).format(n);
+  const billingDate = (date: string) =>
+    new Intl.DateTimeFormat(intlLocale[locale], { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })
+      .format(new Date(date)) + " UTC";
 
   const showResult = useCallback((result: ScanResponse) => {
     setScan(result); setPortions(result.result.foods.map(food => String(food.portionGrams)));
@@ -73,9 +85,8 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
     if (!user) return;
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
-    const purchaseId = params.get("purchase");
     if (checkout === "cancel") { setPayment("cancel"); return; }
-    if (checkout !== "success" || !purchaseId) return;
+    if (checkout !== "success" || (!params.get("purchase") && !params.get("pro"))) return;
     setPayment("pending");
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
@@ -84,7 +95,7 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
       try {
         const data = await scanApi<CreditsResponse>("/api/ai/credits?page=1", locale, undefined, controller.signal);
         if (controller.signal.aborted) return;
-        if (data.purchases.some(p => p.id === purchaseId && p.status === "paid")) {
+        if (confirmedCheckout(data, params)) {
           setPayment("confirmed"); setPage(1); setAccount(data); return;
         }
       } catch { if (controller.signal.aborted) return; }
@@ -95,9 +106,9 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
   }, [user, locale]);
 
   useEffect(() => {
-    if (payment !== "pending") return;
-    const id = new URLSearchParams(window.location.search).get("purchase");
-    if (account?.purchases.some(p => p.id === id && p.status === "paid")) setPayment("confirmed");
+    if (payment === "pending" && account && confirmedCheckout(account, new URLSearchParams(window.location.search))) {
+      setPayment("confirmed");
+    }
   }, [account, payment]);
 
   // Recover a completed scan after a lost response, navigation, or Checkout redirect.
@@ -150,6 +161,7 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
     try {
       const result = await scanApi<ScanResponse>("/api/ai/scans", locale, { requestId: current.id, locale: current.locale, image: photo });
       showResult(result);
+      void refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : t.genericError);
       if (e instanceof ScanApiError && ["aiNoFood", "aiScanFailed", "aiRetryScan"].includes(e.code)) {
@@ -164,17 +176,24 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
     } finally { setScanning(false); }
   };
 
-  const buy = async () => {
-    if (buying || !user) return;
-    setBuying(true); setError("");
-    checkoutRequest.current ??= { id: crypto.randomUUID(), locale };
+  const openBilling = async (action: BillingProduct | "portal") => {
+    if (!user) { openAuth(); return; }
+    if (buying) return;
+    setBuying(action); setError("");
     try {
-      const { url } = await scanApi<{ url: string }>("/api/stripe/checkout", locale, { requestId: checkoutRequest.current.id, locale: checkoutRequest.current.locale });
+      let url: string;
+      if (action === "portal") {
+        ({ url } = await scanApi<{ url: string }>("/api/stripe/portal", locale, { locale }));
+      } else {
+        const request = checkoutRequests.current[action] ??= { id: crypto.randomUUID(), locale };
+        ({ url } = await scanApi<{ url: string }>("/api/stripe/checkout", locale,
+          { requestId: request.id, locale: request.locale, product: action }));
+      }
       window.location.assign(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : t.genericError);
-      if (e instanceof ScanApiError && e.code === "aiCheckoutFinished") checkoutRequest.current = null;
-      setBuying(false);
+      if (action !== "portal" && e instanceof ScanApiError && e.code === "aiCheckoutFinished") delete checkoutRequests.current[action];
+      setBuying(null);
     }
   };
 
@@ -194,7 +213,8 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
   const validPortions = portions.length > 0 && portions.every(p => p.trim() !== "" && Number.isFinite(Number(p)) && Number(p) >= 1 && Number(p) <= 5000);
   const nutrients = scan?.result.foods.map((food, i) => scaleEstimatedFood(food, validPortions ? Number(portions[i]) : food.portionGrams)) || [];
   const totals = nutrients.reduce((sum, n) => ({ kcal: sum.kcal + n.kcal, protein: sum.protein + n.protein, carbs: sum.carbs + n.carbs, fat: sum.fat + n.fat }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
-  const purchaseLabels = { paid: t.aiPaid, pending: t.aiPending, expired: t.aiExpired, failed: t.aiFailed };
+  const purchaseLabels = { paid: t.aiPaid, pending: t.aiPending, expired: t.aiExpired, failed: t.aiFailed, refunded: t.billingRefunded };
+  const paymentIssue = account && ["incomplete", "past_due", "unpaid", "paused"].includes(account.subscriptionStatus ?? "");
 
   return <div className="view fade-in ai-view">
     <div className="view-header"><div><span className="eyebrow"><Sparkles size={15}/> {t.photoTab}</span><h1>{t.aiTitle}</h1><p>{t.aiSubtitle}</p></div><span className="header-illustration"><ImagePlus size={40} strokeWidth={1.2}/></span></div>
@@ -202,12 +222,26 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
     {!user ? <section className="card ai-login"><div className="icon-badge olive"><Sparkles size={24}/></div><h2>{t.photoTab}</h2><p>{t.aiLoginRequired}</p><button className="btn btn-primary" onClick={openAuth}><LogIn size={17}/>{t.login}</button></section> : <>
       <section className="card ai-credit-card" aria-label={t.aiCredits}>
         <div className="ai-credit-balance"><span className="icon-badge olive"><Sparkles size={22}/></span><div><span>{t.aiCredits}</span><strong>{account ? number(account.credits) : "—"}</strong></div></div>
-        <div className="ai-pack"><button type="button" className="btn btn-primary" disabled={buying || busy || !account?.checkoutAvailable} onClick={() => void buy()}>{buying ? <LoaderCircle size={18} className="spin"/> : <CreditCard size={18}/>} {t.aiPack}</button><small>{t.aiPackNote}</small></div>
-        <button className="icon-button" type="button" onClick={() => void refresh()} aria-label={t.aiRefresh} disabled={refreshing}><RefreshCw size={18} className={refreshing ? "spin" : ""}/></button>
+        <div className="billing-actions">
+          <a href="#scan-plans" className="btn btn-outline">{t.billingPlans}</a>
+          {account?.portalAvailable && <button type="button" className="btn btn-outline" disabled={buying !== null || busy} onClick={() => void openBilling("portal")}>
+            {buying === "portal" ? <LoaderCircle size={17} className="spin"/> : <CreditCard size={17}/>} {t.billingManage}
+          </button>}
+          <button className="icon-button" type="button" onClick={() => void refresh()} aria-label={t.aiRefresh} disabled={refreshing}><RefreshCw size={18} className={refreshing ? "spin" : ""}/></button>
+        </div>
+        {account && <dl className="billing-breakdown">
+          <div><dt>{t.billingCurrentPlan}</dt><dd>{account.plan === "pro" ? "Pro" : "Basic"}</dd></div>
+          <div><dt>{t.billingMonthlyBalance}</dt><dd>{number(account.monthlyCredits)}</dd></div>
+          <div><dt>{t.billingPurchasedBalance}</dt><dd>{number(account.purchasedCredits)}</dd></div>
+          <div><dt>{t.billingMonthlyExpires}</dt><dd>{billingDate(account.monthlyExpiresAt)}</dd></div>
+          {account.cancelAt && <div><dt>{t.billingCancelAt}</dt><dd>{billingDate(account.cancelAt)}</dd></div>}
+          {account.renewalAt && <div><dt>{t.billingRenews}</dt><dd>{billingDate(account.renewalAt)}</dd></div>}
+        </dl>}
       </section>
+      {paymentIssue && <p className="ai-no-credits" role="status">{t.billingPaymentIssue}</p>}
+      {account?.subscriptionStatus === "canceled" && <p className="subtle-note">{t.billingCanceled}</p>}
       {accountError && <p className="form-error" role="alert">{accountError}</p>}
       {payment && <div className={`ai-payment-notice ${payment === "confirmed" ? "confirmed" : ""}`} role="status">{payment === "confirmed" ? <Check size={20}/> : <Info size={20}/>}<p>{payment === "pending" ? t.aiPaymentPending : payment === "confirmed" ? t.aiPaymentConfirmed : t.aiPaymentCanceled}</p></div>}
-      {account && !account.checkoutAvailable && <p className="subtle-note"><Info size={15}/>{t.aiCheckoutUnavailable}</p>}
       {account && !account.scanningAvailable && <p className="form-error">{t.aiUnavailable}</p>}
       {account?.credits === 0 && <p className="ai-no-credits">{t.aiNoCredits}</p>}
       <section className="card ai-photo-card">
@@ -239,12 +273,18 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
       </section>}
       <details className="card ai-history"><summary>{t.aiHistory}</summary>
         {!account?.purchases.length ? <p className="subtle-note">{t.aiNoPurchases}</p> : <ul>{account.purchases.map(purchase => <li key={purchase.id}>
-          <div><strong>{purchase.credits} {t.aiScans}</strong><small>{new Intl.DateTimeFormat(intlLocale[locale], { dateStyle: "medium", timeStyle: "short" }).format(new Date(purchase.createdAt))}</small></div>
-          <span className={`ai-purchase-status ${purchase.status}`}>{purchaseLabels[purchase.status]}</span>
-          <strong>{new Intl.NumberFormat(intlLocale[locale], { style: "currency", currency: purchase.currency }).format(purchase.amount / 100)}</strong>
+          <div><strong>{purchase.kind === "pro" ? "Pro" : t.billingPackLabel.replace("{count}", number(purchase.credits))}</strong>
+            <small>{billingDate(purchase.createdAt)}</small></div>
+          <span className={`ai-purchase-status ${purchase.status}`}>
+            {purchase.refundedAmount > 0 && purchase.status !== "refunded" ? t.billingPartialRefund : purchaseLabels[purchase.status]}
+          </span>
+          <div><strong>{formatEuro(purchase.amount, locale)}</strong>
+            {purchase.refundedAmount > 0 && <small>−{formatEuro(purchase.refundedAmount, locale)}</small>}</div>
         </li>)}</ul>}
         <div className="ai-history-pages"><button className="btn btn-outline" type="button" disabled={page <= 1 || refreshing} onClick={() => setPage(v => v - 1)}><ChevronLeft size={16}/>{t.previous}</button><span>{number(page)}</span><button className="btn btn-outline" type="button" disabled={!account?.hasMore || refreshing} onClick={() => setPage(v => v + 1)}>{t.next}<ChevronRight size={16}/></button></div>
       </details>
     </>}
+    <BillingPlans locale={locale} account={account} signedIn={Boolean(user)} buying={buying} busy={busy}
+      onBuy={product => void openBilling(product)}/>
   </div>;
 }

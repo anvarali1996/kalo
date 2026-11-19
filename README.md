@@ -1,13 +1,13 @@
-# Kalo Balance — AI food photos, scan packs and password confirmation
+# Kalo Balance — AI food photos, plans and account security
 
 - AI photo scanning with editable portions, estimated calories/macros, and idempotent meal saves.
-- Five free scans for existing and new users; repeatable one-time Stripe packs of five scans for €4.99 EUR.
+- Basic provides 6 scans per UTC month. Pro provides 120 scans per paid billing cycle for €7.99/month. One-time packs add 20 scans for €2.99 or 50 for €5.99.
 - PostgreSQL credit accounting and transaction history with verified, idempotent webhooks.
-- Translated password confirmation and show/hide controls in Uzbek, English, Russian and Latvian.
+- Stripe Customer Portal, payment and refund history, plus password recovery and password changes in four languages.
 - Open Food Facts barcode scanning is free.
 
-**Setup and release:** [SETUP-AI.md](SETUP-AI.md) includes exact OpenAI, Stripe, Neon migration and Vercel steps.
-Use `npm run db:migrate` for this release; `db:push` does not install accounting functions or the welcome-credit trigger.
+**Setup and release:** [SETUP-AI.md](SETUP-AI.md) includes OpenAI, Stripe, Resend, Neon migration and Vercel setup.
+Use `npm run db:migrate` to apply the accounting and password functions, triggers, and balance backfill.
 
 ---
 

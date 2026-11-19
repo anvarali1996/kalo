@@ -29,7 +29,7 @@ import { GET as adminUsers } from "@/app/api/admin/users/route";
 import { GET as getScan } from "@/app/api/ai/scans/[id]/route";
 import { POST as saveScan } from "@/app/api/ai/scans/[id]/diary/route";
 
-const balance = async () => (await pg.query<{ credits: number }>("SELECT credits FROM scan_accounts WHERE user_id=$1", [userId])).rows[0].credits;
+const balance = async () => (await pg.query<{ credits: number }>("SELECT (kalo_scan_balance($1)->>'credits')::integer AS credits", [userId])).rows[0].credits;
 const post = (url: string, body: object, origin = "http://localhost:3000") => new NextRequest(`http://localhost:3000${url}`, {
   method: "POST", headers: { "Content-Type": "application/json", origin }, body: JSON.stringify(body),
 });
@@ -61,6 +61,12 @@ beforeAll(async () => {
   stripe = new Stripe("sk_test_local_fixture_only");
   vi.spyOn(stripe.checkout.sessions, "retrieve");
   vi.spyOn(stripe.checkout.sessions, "create");
+  vi.spyOn(stripe.customers, "create");
+  vi.spyOn(stripe.prices, "retrieve");
+  vi.spyOn(stripe.refunds, "list").mockReturnValue({ async *[Symbol.asyncIterator]() {} } as unknown as ReturnType<Stripe["refunds"]["list"]>);
+  vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_local_fixture_only");
+  vi.stubEnv("STRIPE_PACK20_PRICE_ID", "price_pack20");
+  vi.stubEnv("STRIPE_PACK50_PRICE_ID", "price_pack50");
   vi.stubEnv("OPENAI_API_KEY", "local_test_fixture_only");
   vi.stubEnv("STRIPE_WEBHOOK_SECRET", webhookSecret);
   vi.stubEnv("APP_URL", "http://localhost:3000");
@@ -81,7 +87,7 @@ describe("Authenticated scan API", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({
         scannerSetup: { database: true, openAi: true },
-        users: [{ id: userId, scanCredits: 5 }],
+        users: [{ id: userId, scanCredits: 6 }],
       });
     } finally {
       vi.stubEnv("KALO_ADMIN_USER_IDS", "");
@@ -91,20 +97,20 @@ describe("Authenticated scan API", () => {
   it("requires login before inspecting a photo or calling OpenAI", async () => {
     mocks.currentUser.mockResolvedValue(null);
     expect((await scanPhoto(post("/api/ai/scans", photoInput()))).status).toBe(401);
-    expect(mocks.analyze).not.toHaveBeenCalled(); expect(await balance()).toBe(5);
+    expect(mocks.analyze).not.toHaveBeenCalled(); expect(await balance()).toBe(6);
   });
   it("rejects cross-site writes and invalid image bytes without charging", async () => {
     expect((await scanPhoto(post("/api/ai/scans", photoInput(), "https://elsewhere.test"))).status).toBe(403);
     expect((await scanPhoto(post("/api/ai/scans", { ...photoInput(), image: "data:image/jpeg;base64,dGV4dA==" }))).status).toBe(400);
-    expect(mocks.analyze).not.toHaveBeenCalled(); expect(await balance()).toBe(5);
+    expect(mocks.analyze).not.toHaveBeenCalled(); expect(await balance()).toBe(6);
   });
   it("returns cached successful results for a repeated request without another model call", async () => {
     const input = photoInput();
     const first = await scanPhoto(post("/api/ai/scans", input));
-    expect(first.status).toBe(200); expect((await first.json()).credits).toBe(4);
+    expect(first.status).toBe(200); expect((await first.json()).credits).toBe(5);
     const replay = await scanPhoto(post("/api/ai/scans", input));
     expect(replay.status).toBe(200); expect(mocks.analyze).toHaveBeenCalledTimes(1);
-    expect(await balance()).toBe(4);
+    expect(await balance()).toBe(5);
     const recovered = await getScan(new Request("http://localhost:3000"), params(input.requestId));
     expect((await recovered.json()).status).toBe("succeeded");
   });
@@ -113,12 +119,12 @@ describe("Authenticated scan API", () => {
     expect((await scanPhoto(post("/api/ai/scans", photoInput()))).status).toBe(422);
     mocks.analyze.mockRejectedValueOnce(new AiError("aiScanFailed", 502));
     expect((await scanPhoto(post("/api/ai/scans", photoInput()))).status).toBe(502);
-    expect(await balance()).toBe(5);
+    expect(await balance()).toBe(6);
   });
-  it("requires payment before a sixth successful model call", async () => {
-    for (let i = 0; i < 5; i++) expect((await scanPhoto(post("/api/ai/scans", photoInput()))).status).toBe(200);
+  it("requires more credits before a seventh successful model call", async () => {
+    for (let i = 0; i < 6; i++) expect((await scanPhoto(post("/api/ai/scans", photoInput()))).status).toBe(200);
     expect((await scanPhoto(post("/api/ai/scans", photoInput()))).status).toBe(402);
-    expect(mocks.analyze).toHaveBeenCalledTimes(5); expect(await balance()).toBe(0);
+    expect(mocks.analyze).toHaveBeenCalledTimes(6); expect(await balance()).toBe(0);
   });
   it("saves edited portions to the diary with Zod validation and user isolation", async () => {
     const input = photoInput(); await scanPhoto(post("/api/ai/scans", input));
@@ -132,41 +138,41 @@ describe("Authenticated scan API", () => {
     const other = await createTestUser(pg); mocks.currentUser.mockResolvedValue({ id: other });
     expect((await getScan(new Request("http://localhost:3000"), params(input.requestId))).status).toBe(404);
     expect((await saveScan(post("/api/ai/scans/id/diary", body), params(input.requestId))).status).toBe(404);
-    expect(await balance()).toBe(4);
+    expect(await balance()).toBe(5);
   });
 });
 
 describe("Stripe Checkout and signed webhook API", () => {
-  it("creates a real one-time EUR pack with a durable idempotency key", async () => {
-    vi.mocked(stripe.checkout.sessions.create).mockResolvedValue({ id: "cs_open", status: "open", url: "https://checkout.stripe.com/c/pay/test" } as Stripe.Response<Stripe.Checkout.Session>);
+  it("creates a pack checkout with the configured Stripe price and no immediate credit", async () => {
+    vi.mocked(stripe.prices.retrieve).mockResolvedValue({ active: true, currency: "eur", type: "one_time",
+      unit_amount: 299 } as Stripe.Response<Stripe.Price>);
+    vi.mocked(stripe.customers.create).mockResolvedValue({ id: "cus_fixture" } as Stripe.Response<Stripe.Customer>);
     const requestId = randomUUID();
-    const result = await checkout(post("/api/stripe/checkout", { requestId, locale: "lv" }));
+    vi.mocked(stripe.checkout.sessions.create).mockImplementation(async params => ({
+      id: "cs_open", status: "open", url: "https://checkout.stripe.com/c/pay/test",
+      client_reference_id: userId, customer: params?.customer, metadata: params?.metadata,
+    } as Stripe.Response<Stripe.Checkout.Session>));
+    const result = await checkout(post("/api/stripe/checkout", { requestId, locale: "lv", product: "pack20" }));
     expect(result.status).toBe(200);
     expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({
       mode: "payment", adaptive_pricing: { enabled: false }, automatic_tax: { enabled: false },
-      line_items: [{ price_data: { currency: "eur", unit_amount: 499, tax_behavior: "inclusive", product_data: { name: "Kalo Balance · 5 AI food scans" } }, quantity: 1 }],
-      metadata: { userId, purchaseId: requestId, pack: SCAN_PACK.code },
+      locale: "lv",
+      line_items: [{ price: "price_pack20", quantity: 1 }],
+      metadata: { userId, purchaseId: requestId, pack: "pack20" },
       success_url: `http://localhost:3000/?checkout=success&purchase=${requestId}`,
-    }), { idempotencyKey: `kalo-scans:${requestId}` });
-    expect(await balance()).toBe(5);
+    }), { idempotencyKey: `kalo-pack:${requestId}` });
+    expect(await balance()).toBe(6);
+    expect((await pg.query("SELECT amount, credits, status FROM scan_purchases")).rows)
+      .toEqual([{ amount: 299, credits: 20, status: "pending" }]);
   });
-  it("recovers a previously created Stripe session after the app rename", async () => {
-    const requestId = randomUUID();
-    const idempotencyKey = `kalo-scans:${requestId}`;
-    await pg.query("SELECT kalo_start_purchase($1,$2)", [userId, requestId]);
-    const create = vi.mocked(stripe.checkout.sessions.create);
-    create.mockRejectedValueOnce(new Stripe.errors.StripeIdempotencyError({
-      type: "idempotency_error", statusCode: 400, message: "Request parameters changed",
-    })).mockResolvedValueOnce({
-      id: "cs_legacy", status: "open", url: "https://checkout.stripe.com/c/pay/legacy",
-    } as Stripe.Response<Stripe.Checkout.Session>);
 
-    const result = await checkout(post("/api/stripe/checkout", { requestId, locale: "en" }));
-    expect(result.status).toBe(200);
-    const names = create.mock.calls.map(([params]) => params?.line_items?.[0]?.price_data?.product_data?.name);
-    expect(names).toEqual(["Kalo Balance · 5 AI food scans", "KALO · 5 AI food scans"]);
-    expect(create.mock.calls.map(([, options]) => options?.idempotencyKey)).toEqual([idempotencyKey, idempotencyKey]);
-    expect(await balance()).toBe(5);
+  it("rejects a configured Price with the wrong amount before starting a checkout", async () => {
+    vi.mocked(stripe.prices.retrieve).mockResolvedValue({ active: true, currency: "eur", type: "one_time",
+      unit_amount: 499 } as Stripe.Response<Stripe.Price>);
+    const result = await checkout(post("/api/stripe/checkout", { requestId: randomUUID(), locale: "en", product: "pack50" }));
+    expect(result.status).toBe(503);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect((await pg.query("SELECT id FROM scan_purchases")).rows).toHaveLength(0);
   });
   it("rejects forged, altered and old webhook signatures", async () => {
     await makePurchase();
@@ -177,7 +183,7 @@ describe("Stripe Checkout and signed webhook API", () => {
     const altered = new Request("http://localhost:3000/api/stripe/webhook", { method: "POST", headers: { "stripe-signature": validHeader }, body: raw + " " });
     expect((await webhook(altered)).status).toBe(400);
     expect((await webhook(signedEvent(raw, Math.floor(Date.now() / 1000) - 600))).status).toBe(400);
-    expect(stripe.checkout.sessions.retrieve).not.toHaveBeenCalled(); expect(await balance()).toBe(5);
+    expect(stripe.checkout.sessions.retrieve).not.toHaveBeenCalled(); expect(await balance()).toBe(6);
   });
   it("credits a verified paid event once across both repeated and different event IDs", async () => {
     await makePurchase();
@@ -185,17 +191,46 @@ describe("Stripe Checkout and signed webhook API", () => {
     expect((await webhook(signedEvent(raw))).status).toBe(200);
     expect((await webhook(signedEvent(raw))).status).toBe(200);
     expect((await webhook(signedEvent(eventBody("checkout.session.async_payment_succeeded", "evt_async")))).status).toBe(200);
-    expect(await balance()).toBe(10);
+    expect(await balance()).toBe(11);
     expect((await pg.query("SELECT * FROM scan_credit_transactions WHERE kind='purchase'")).rows).toHaveLength(1);
   });
   it("waits for delayed payment confirmation and supports another pack", async () => {
     await makePurchase(); session.payment_status = "unpaid";
-    expect((await webhook(signedEvent(eventBody()))).status).toBe(200); expect(await balance()).toBe(5);
+    expect((await webhook(signedEvent(eventBody()))).status).toBe(200); expect(await balance()).toBe(6);
     session.payment_status = "paid";
     expect((await webhook(signedEvent(eventBody("checkout.session.async_payment_succeeded", "evt_delayed")))).status).toBe(200);
     await makePurchase();
     expect((await webhook(signedEvent(eventBody("checkout.session.completed", "evt_another")))).status).toBe(200);
-    expect(await balance()).toBe(15);
+    expect(await balance()).toBe(16);
+  });
+  it("records a failed pack payment and accepts a later verified payment without double-granting", async () => {
+    const id = await makePurchase();
+    session.payment_status = "unpaid";
+    expect((await webhook(signedEvent(eventBody("checkout.session.async_payment_failed")))).status).toBe(200);
+    expect(await balance()).toBe(6);
+    expect((await pg.query("SELECT status FROM scan_purchases WHERE id=$1", [id])).rows).toEqual([{ status: "failed" }]);
+    session.payment_status = "paid";
+    expect((await webhook(signedEvent(eventBody("checkout.session.async_payment_succeeded", "evt_paid")))).status).toBe(200);
+    expect(await balance()).toBe(11);
+  });
+  it("accepts an exact configured pack Price and rejects a different Price with the same amount", async () => {
+    const id = randomUUID();
+    await pg.query("UPDATE scan_accounts SET stripe_customer_id='cus_pack_user' WHERE user_id=$1", [userId]);
+    await pg.query("SELECT kalo_start_pack($1,$2,'pack20','price_pack20','en')", [userId, id]);
+    session = {
+      id: "cs_pack20", mode: "payment", status: "complete", payment_status: "paid",
+      amount_total: 299, amount_subtotal: 299, currency: "eur", customer: "cus_pack_user",
+      client_reference_id: userId, payment_intent: "pi_pack20",
+      metadata: { userId, purchaseId: id, pack: "pack20" },
+      line_items: { data: [{ quantity: 1, price: { id: "price_wrong", unit_amount: 299, currency: "eur" } }], has_more: false },
+    } as unknown as Stripe.Checkout.Session;
+    vi.mocked(stripe.checkout.sessions.retrieve).mockImplementation(async () => session as Stripe.Response<Stripe.Checkout.Session>);
+    expect((await webhook(signedEvent(eventBody()))).status).toBe(400);
+    expect(await balance()).toBe(6);
+    session.line_items!.data[0].price!.id = "price_pack20";
+    expect((await webhook(signedEvent(eventBody()))).status).toBe(200);
+    expect((await webhook(signedEvent(eventBody("checkout.session.completed", "evt_duplicate")))).status).toBe(200);
+    expect(await balance()).toBe(26);
   });
   it.each(["amount", "currency", "owner", "mode", "quantity"])("rejects a signed event with the wrong %s", async field => {
     await makePurchase();
@@ -204,18 +239,20 @@ describe("Stripe Checkout and signed webhook API", () => {
     if (field === "owner") session.metadata!.userId = randomUUID();
     if (field === "mode") session.mode = "subscription";
     if (field === "quantity") session.line_items!.data[0].quantity = 2;
-    expect((await webhook(signedEvent(eventBody()))).status).toBe(400); expect(await balance()).toBe(5);
+    expect((await webhook(signedEvent(eventBody()))).status).toBe(400); expect(await balance()).toBe(6);
   });
   it("never credits a fake browser success return or an unpaid session", async () => {
     await makePurchase();
     const response = await credits(new NextRequest("http://localhost:3000/api/ai/credits?checkout=success"));
-    expect((await response.json()).credits).toBe(5);
+    expect((await response.json()).credits).toBe(6);
     session.payment_status = "unpaid";
-    await webhook(signedEvent(eventBody())); expect(await balance()).toBe(5);
+    await webhook(signedEvent(eventBody())); expect(await balance()).toBe(6);
   });
   it("validates every authoritative payment field before fulfillment", async () => {
     const id = await makePurchase();
-    expect(validPaidSession(session, { id, userId, checkoutSessionId: session.id })).toBe(true);
-    expect(validPaidSession(session, { id, userId, checkoutSessionId: "cs_other" })).toBe(false);
+    const legacy = { id, userId, checkoutSessionId: session.id, packCode: SCAN_PACK.code, stripePriceId: null,
+      amount: SCAN_PACK.amount, currency: SCAN_PACK.currency };
+    expect(validPaidSession(session, legacy, null)).toBe(true);
+    expect(validPaidSession(session, { ...legacy, checkoutSessionId: "cs_other" }, null)).toBe(false);
   });
 });

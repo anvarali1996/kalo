@@ -13,10 +13,10 @@ import { POST as addDiaryEntry } from "@/app/api/diary/route";
 import { GET as adminUsers } from "@/app/api/admin/users/route";
 import { GET as scanCredits } from "@/app/api/ai/credits/route";
 import { COOKIE_NAME, hashToken } from "@/lib/server-auth";
+import { testBatch } from "./database-helpers";
 
-type BatchQuery = { toSQL(): { sql: string; params: unknown[] } };
 let pg: PGlite;
-let db: ReturnType<typeof drizzle<typeof schema>> & { batch(queries: BatchQuery[]): Promise<void> };
+let db: ReturnType<typeof drizzle<typeof schema>> & { batch: ReturnType<typeof testBatch> };
 let sessionToken: string | undefined;
 let userId: string;
 
@@ -42,17 +42,7 @@ beforeAll(async () => {
   pg = new PGlite();
   const baseline = await readFile(new URL("../drizzle/0000_existing_schema.sql", import.meta.url), "utf8");
   await pg.exec(baseline);
-  db = Object.assign(drizzle(pg, { schema }), {
-    async batch(queries: BatchQuery[]) {
-      // Execute the production batch's SQL against the local PostgreSQL fixture.
-      await pg.transaction(async tx => {
-        for (const query of queries) {
-          const { sql, params } = query.toSQL();
-          await tx.query(sql, params);
-        }
-      });
-    },
-  });
+  db = Object.assign(drizzle(pg, { schema }), { batch: testBatch(pg) });
   const [user] = await db.insert(schema.users)
     .values({ name: "Existing account", email: credentials.email, passwordHash: await bcrypt.hash(credentials.password, 4) })
     .returning({ id: schema.users.id });

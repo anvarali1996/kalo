@@ -31,7 +31,21 @@ export const credentialsSchema = z.object({
   email: z.email().max(254).transform(e => e.toLowerCase().trim()),
   password: z.string().min(8).max(72),
 });
-export const registerSchema = credentialsSchema.extend({ name: z.string().trim().min(2).max(100) });
+const newPasswordSchema = credentialsSchema.shape.password.refine(p => new TextEncoder().encode(p).length <= 72);
+export const registerSchema = credentialsSchema.extend({
+  name: z.string().trim().min(2).max(100), password: newPasswordSchema,
+});
+
+export const resetTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+export const redeemPasswordSchema = z.object({ token: resetTokenSchema, password: newPasswordSchema }).strict();
+export const changePasswordSchema = z.object({
+  currentPassword: credentialsSchema.shape.password, password: newPasswordSchema,
+}).strict();
+
+export const passwordConfirmationSchema = z.object({ password: newPasswordSchema, confirmPassword: z.string() })
+  .refine(input => input.password === input.confirmPassword, {
+    path: ["confirmPassword"], message: "passwordMismatch",
+  }).transform(({ password }) => ({ password }));
 
 // This schema is used by the form only. Its transform keeps confirmation out of API payloads.
 export const signupFormSchema = registerSchema.extend({ confirmPassword: z.string() })

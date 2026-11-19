@@ -3055,6 +3055,8 @@ p {
 .ai-credit-card {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 22px;
     padding: 22px 24px;
     margin-bottom: 18px;
@@ -3081,20 +3083,6 @@ p {
 .ai-credit-balance strong {
     font: 800 32px Manrope,sans-serif;
     line-height: 1.2;
-}
-
-.ai-pack {
-    display: flex;
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-    max-width: 330px;
-}
-
-.ai-pack small {
-    color: var(--muted);
-    font-size: 10px;
-    line-height: 1.6;
 }
 
 .ai-payment-notice,
@@ -3547,10 +3535,6 @@ p {
     .admin-user dd { font-size: 12px; }
 }
 
-.ai-credit-card > .icon-button {
-    flex: none;
-}
-
 .ai-view button:focus-visible,
 .password-toggle:focus-visible {
     outline: 3px solid #7ba68b;
@@ -3576,26 +3560,7 @@ p {
 
     .ai-credit-card {
         padding: 18px;
-        flex-wrap: wrap;
         gap: 15px;
-    }
-
-    .ai-credit-balance {
-        order: 0;
-    }
-
-    .ai-credit-card > .icon-button {
-        order: 1;
-    }
-
-    .ai-pack {
-        order: 2;
-        max-width: none;
-        width: 100%;
-    }
-
-    .ai-pack .btn {
-        width: 100%;
     }
 
     .ai-photo-card,
@@ -3701,5 +3666,157 @@ p {
 
     .ai-payment-notice {
         font-size: 11px;
+    }
+}
+
+/* Billing and password controls use the same cards and fields as the scanner and profile. */
+.billing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.billing-breakdown {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px 16px;
+    width: 100%;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    margin: 0;
+}
+
+.billing-breakdown dt, .billing-plan small {
+    color: var(--ink-soft);
+    font-size: 12px;
+}
+
+.billing-breakdown dd {
+    font-size: 14px;
+    font-weight: 800;
+    margin: 4px 0 0;
+}
+
+.billing-plans {
+    padding: 22px;
+    margin: 18px 0;
+    scroll-margin-top: 16px;
+}
+
+.billing-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
+    gap: 12px;
+}
+
+.billing-plan {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    border: 1px solid #dfe9df;
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+.billing-plan-pro {
+    background: var(--pale);
+    border-color: #c5dac8;
+}
+
+.billing-plan h3, .billing-plan p {
+    margin: 0;
+}
+
+.billing-plan strong {
+    font-size: 22px;
+    line-height: 1.15;
+}
+
+.billing-plan p, .profile-password > p {
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.billing-plan .btn {
+    margin-top: auto;
+    min-height: 43px;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.billing-plans > .subtle-note {
+    margin: 14px 0 0;
+}
+
+.ai-purchase-status.refunded {
+    color: var(--ink-soft);
+    background: var(--pale);
+}
+
+.profile-password {
+    margin-top: 18px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+}
+
+.profile-password > summary {
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    color: var(--green);
+}
+
+.profile-password > p {
+    margin: 10px 0 14px;
+}
+
+.password-reset-page {
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    padding: 18px;
+}
+
+.password-reset-card {
+    max-height: none;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--line);
+}
+
+.password-reset-card h1 {
+    font-family: Manrope, sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    margin: 0 0 8px;
+}
+
+.password-reset-card .switch-auth {
+    display: block;
+    width: fit-content;
+}
+
+.password-link-sent {
+    border-radius: 10px;
+    background: var(--pale);
+    padding: 12px;
+}
+
+@media (max-width: 700px) {
+    .billing-plans {
+        padding: 16px;
+    }
+
+    .billing-actions .btn {
+        min-height: 40px;
+        white-space: normal;
+    }
+
+    .password-reset-card .field input,
+    .profile-password .field input {
+        font-size: 16px;
     }
 }

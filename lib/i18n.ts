@@ -1,9 +1,13 @@
 import type { Locale } from "./types";
 import { appName } from "./brand";
 import { featureTranslations } from "./feature-i18n";
+import { passwordTranslations } from "./password-i18n";
+import { billingTranslations } from "./billing-i18n";
 
 const en = {
   ...featureTranslations.en,
+  ...passwordTranslations.en,
+  ...billingTranslations.en,
   mainNavigation: "Main navigation",
   mobileNavigation: "Mobile navigation",
   openMenu: "Open menu",
@@ -54,6 +58,8 @@ const en = {
 type Key = keyof typeof en;
 const uz: Record<Key, string> = {
   ...featureTranslations.uz,
+  ...passwordTranslations.uz,
+  ...billingTranslations.uz,
   mainNavigation: "Asosiy menyu",
   mobileNavigation: "Mobil menyu",
   openMenu: "Menyuni ochish",
@@ -103,6 +109,8 @@ const uz: Record<Key, string> = {
 
 const ru: Record<Key, string> = {
   ...featureTranslations.ru,
+  ...passwordTranslations.ru,
+  ...billingTranslations.ru,
   mainNavigation: "Главное меню",
   mobileNavigation: "Мобильная навигация",
   openMenu: "Открыть меню",
@@ -152,6 +160,8 @@ const ru: Record<Key, string> = {
 
 const lv: Record<Key, string> = {
   ...featureTranslations.lv,
+  ...passwordTranslations.lv,
+  ...billingTranslations.lv,
   mainNavigation: "Galvenā izvēlne",
   mobileNavigation: "Mobilā navigācija",
   openMenu: "Atvērt izvēlni",
