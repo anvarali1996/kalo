@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#285a43" />
-  <title>KALO — Internet yo‘q</title>
+  <title>Kalo Balance — Internet yo‘q</title>
   <style>
     * { box-sizing: border-box; }
 
@@ -30,15 +30,22 @@
       text-align: center;
     }
 
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+    }
+
     .logo {
       display: inline-grid;
       place-items: center;
-      width: 68px;
-      height: 68px;
-      border-radius: 20px;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
       background: #285a43;
       color: white;
-      font-size: 28px;
+      font-size: 22px;
       font-weight: 900;
     }
 
@@ -61,29 +68,29 @@
 </head>
 <body>
 <main>
-  <span class="logo" aria-hidden="true">K</span>
+  <div class="brand"><span class="logo" aria-hidden="true">K</span>Kalo Balance</div>
   <h1 id="offline-heading">Internetga ulanib qayta urinib ko‘ring</h1>
-  <p id="offline-description">KALO ovqat kundaligi va skaner uchun internet talab qiladi. Bu sahifa shaxsiy ma’lumotlaringizni keshga saqlamaydi.</p>
+  <p id="offline-description">Ovqat kundaligi va skaner uchun internet kerak. Bu sahifa shaxsiy ma’lumotlaringizni keshga saqlamaydi.</p>
   <p id="offline-english" lang="en">You're offline. Reconnect to use your diary and the food scanner.</p>
   <button id="offline-retry" type="button" onclick="location.reload()">Qayta urinish / Retry</button>
 </main>
 <script>
-  // Use the language saved by KALO without loading the app or an external script.
+  // Use the language saved by the app without loading an external script.
   const offlineCopy = {
     en: {
-      title: "KALO — Offline",
+      title: "Kalo Balance — Offline",
       heading: "Reconnect and try again",
       description: "The food diary and scanner need an internet connection. This page does not cache your personal data.",
       retry: "Retry",
     },
     ru: {
-      title: "KALO — Нет интернета",
+      title: "Kalo Balance — Нет интернета",
       heading: "Подключитесь к интернету и повторите попытку",
       description: "Для дневника питания и сканера нужен интернет. Эта страница не сохраняет ваши личные данные в кеше.",
       retry: "Повторить",
     },
     lv: {
-      title: "KALO — Nav interneta",
+      title: "Kalo Balance — Nav interneta",
       heading: "Pieslēdzies internetam un mēģini vēlreiz",
       description: "Uztura dienasgrāmatai un skenerim vajadzīgs internets. Šī lapa nesaglabā tavus personas datus kešatmiņā.",
       retry: "Mēģināt vēlreiz",

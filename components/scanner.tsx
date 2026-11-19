@@ -33,7 +33,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
-  const [grams, setGrams] = useState(100);
+  const [gramsInput, setGramsInput] = useState("100");
   const [adding, setAdding] = useState(false);
   const [manualName, setManualName] = useState("");
   const [manualKcal, setManualKcal] = useState("");
@@ -41,6 +41,8 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   const [manualCarbs, setManualCarbs] = useState("");
   const [manualFat, setManualFat] = useState("");
   const [manualGrams, setManualGrams] = useState("100");
+  const grams = Number(gramsInput);
+  const validPortion = Number.isFinite(grams) && grams > 0 && grams <= 10000;
 
   const lookup = useCallback(async (code: string) => {
     const digits = code.trim();
@@ -63,7 +65,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
       if (!response.ok) throw new Error(response.status === 404 ? t.notFound : payload.error || t.networkError);
       if (controller.signal.aborted) return;
       setProduct(payload.product as Product);
-      setGrams(100);
+      setGramsInput("100");
     } catch (error) {
       if (!controller.signal.aborted) notify(error instanceof Error ? error.message : t.networkError, true);
     } finally {
@@ -187,7 +189,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   };
 
   const addScanned = async () => {
-    if (!product || product.kcal100 === null || !Number.isFinite(grams) || grams <= 0 || grams > 10000) return;
+    if (!product || product.kcal100 === null || !validPortion) return;
     setAdding(true);
     try {
       await addEntry({ date: today, name: product.name, barcode: product.barcode, grams,
@@ -221,7 +223,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
   };
 
   return <div className="view fade-in">
-    <div className="view-header"><div><span className="eyebrow"><ScanLine size={14} /> KALO SCAN</span>
+    <div className="view-header"><div><span className="eyebrow"><ScanLine size={14} /> {t.barcodeTab}</span>
       <h1>{t.scanTitle}</h1><p>{t.scanSub}</p></div><span className="header-illustration"><Barcode size={52} strokeWidth={1.1}/></span></div>
     <div className="scanner-grid">
       <div className="card scan-main">
@@ -254,7 +256,7 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
         </form>
       </div>
       <aside className="scanner-side">
-        <div className="sidebar-feature"><div className="sidebar-feature-symbol"><Package size={34}/></div><span className="eyebrow">KALO</span><h3>{t.foundProduct}</h3><p>{t.sourceCaveat}</p><a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts <ChevronRight size={16}/></a></div>
+        <div className="sidebar-feature"><div className="sidebar-feature-symbol"><Package size={34}/></div><h3>{t.foundProduct}</h3><p>{t.sourceCaveat}</p><a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts <ChevronRight size={16}/></a></div>
         <div className="card tip-card"><Info size={20}/><p>{t.disclaimer}</p></div>
       </aside>
     </div>
@@ -278,9 +280,9 @@ export function ScannerView({ locale, addEntry, notify, today }: Props) {
             <div><span>{t.nova}</span><strong>{product.nova ?? "—"}</strong></div>
           </div>
           <div className="portion-entry"><div><label htmlFor="scan-grams">{t.portion} ({t.grams})</label>
-              <input id="scan-grams" type="number" min="1" max="10000" value={grams} onChange={e => setGrams(Number(e.target.value))}/></div>
-            <div className="portion-total"><span>{t.perPortion}</span><strong>{show(scale(product.kcal100, grams), t.kcal)}</strong></div>
-            <button className="btn btn-primary" onClick={() => void addScanned()} type="button" disabled={adding || product.kcal100 === null || grams <= 0 || grams > 10000}><Plus size={18}/>{t.addToDiary}</button>
+              <input id="scan-grams" type="number" inputMode="decimal" min="1" max="10000" value={gramsInput} onChange={e => setGramsInput(e.target.value)}/></div>
+            <div className="portion-total"><span>{t.perPortion}</span><strong>{show(validPortion ? scale(product.kcal100, grams) : null, t.kcal)}</strong></div>
+            <button className="btn btn-primary" onClick={() => void addScanned()} type="button" disabled={adding || product.kcal100 === null || !validPortion}><Plus size={18}/>{t.addToDiary}</button>
           </div>
           {product.kcal100 === null && <p className="error-inline">{t.noEnergy}</p>}
         </div>

@@ -1,5 +1,5 @@
 /* The offline cache contains the fallback page and static icons. */
-const CACHE_NAME = "kalo-offline-v3";
+const CACHE_NAME = "kalo-offline-v4";
 const OFFLINE_PAGE = "/offline.html";
 const FILES = [OFFLINE_PAGE, "/icons/icon-192.png", "/icons/icon-512.png"];
 

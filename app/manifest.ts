@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { appName } from "@/lib/brand";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "KALO — Kaloriya va vazn nazorati",
-    short_name: "KALO",
+    name: appName,
+    short_name: appName,
     description: "Kaloriya hisobi, ovqat kundaligi, shtrix-kod skaneri va AI orqali ovqatni aniqlash",
     start_url: "/",
     scope: "/",

@@ -197,7 +197,7 @@ export function AiFoodScanner({ locale, user, today, openAuth, onEntriesAdded, n
   const purchaseLabels = { paid: t.aiPaid, pending: t.aiPending, expired: t.aiExpired, failed: t.aiFailed };
 
   return <div className="view fade-in ai-view">
-    <div className="view-header"><div><span className="eyebrow"><Sparkles size={15}/> KALO AI</span><h1>{t.aiTitle}</h1><p>{t.aiSubtitle}</p></div><span className="header-illustration"><ImagePlus size={40} strokeWidth={1.2}/></span></div>
+    <div className="view-header"><div><span className="eyebrow"><Sparkles size={15}/> {t.photoTab}</span><h1>{t.aiTitle}</h1><p>{t.aiSubtitle}</p></div><span className="header-illustration"><ImagePlus size={40} strokeWidth={1.2}/></span></div>
     <p className="subtle-note"><Sparkles size={15}/>{t.aiFree}</p>
     {!user ? <section className="card ai-login"><div className="icon-badge olive"><Sparkles size={24}/></div><h2>{t.photoTab}</h2><p>{t.aiLoginRequired}</p><button className="btn btn-primary" onClick={openAuth}><LogIn size={17}/>{t.login}</button></section> : <>
       <section className="card ai-credit-card" aria-label={t.aiCredits}>

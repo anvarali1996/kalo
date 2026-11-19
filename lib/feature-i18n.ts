@@ -1,4 +1,5 @@
 import { accountTranslations } from "./account-i18n";
+import { appName } from "./brand";
 
 const en = {
   ...accountTranslations.en,
@@ -6,7 +7,7 @@ const en = {
   barcodeTab: "Barcode · free", photoTab: "AI food photo", aiTitle: "A photo. A little more clarity.",
   aiSubtitle: "Take a photo of your meal to estimate foods, portions and nutrition.", aiBadge: "AI ESTIMATE",
   aiEstimate: "AI nutrition is an estimate. Ingredients and portion sizes can vary. Review the portions before saving.",
-  aiPrivacy: "Your photo is sent to OpenAI for analysis. KALO saves the estimates, not your photo.",
+  aiPrivacy: `OpenAI analyzes your photo. ${appName} saves only the nutrition estimate.`,
   aiFree: "Every account starts with 5 free AI scans. Barcode scanning stays free.",
   aiLoginRequired: "Sign in to use AI food scanning and your scan credits.",
   aiCredits: "AI scans remaining", aiPack: "5 more scans · €4.99", aiPackNote: "One-time payment in EUR. Buy another pack whenever you like.",
@@ -34,7 +35,7 @@ const uz: Record<FeatureKey, string> = {
   barcodeTab: "Shtrix-kod · bepul", photoTab: "AI ovqat surati", aiTitle: "Bir surat — ovqatingiz haqida ko‘proq.",
   aiSubtitle: "Ovqatni, porsiyani va oziqaviy qiymatni taxmin qilish uchun suratga oling.", aiBadge: "AI TAXMINI",
   aiEstimate: "AI oziqaviy qiymatlarni taxmin qiladi. Tarkib va porsiyalar farq qilishi mumkin. Saqlashdan oldin porsiyalarni tekshiring.",
-  aiPrivacy: "Suratingiz tahlil uchun OpenAI’ga yuboriladi. KALO suratni emas, taxminiy natijalarni saqlaydi.",
+  aiPrivacy: `Suratingizni OpenAI tahlil qiladi. ${appName} faqat oziq qiymati taxminini saqlaydi.`,
   aiFree: "Har bir hisobga 5 ta bepul AI skan beriladi. Shtrix-kod skaneri bepul qoladi.",
   aiLoginRequired: "AI orqali ovqatni skanerlash va kreditlardan foydalanish uchun hisobga kiring.",
   aiCredits: "Qolgan AI skanlar", aiPack: "Yana 5 skan · €4.99", aiPackNote: "Yevroda bir martalik to‘lov. Istalgan payt yana paket sotib olishingiz mumkin.",
@@ -61,7 +62,7 @@ const ru: Record<FeatureKey, string> = {
   barcodeTab: "Штрихкод · бесплатно", photoTab: "AI фото еды", aiTitle: "Одно фото — больше ясности.",
   aiSubtitle: "Сфотографируйте еду, чтобы оценить состав блюда, порции и пищевую ценность.", aiBadge: "ОЦЕНКА AI",
   aiEstimate: "Пищевая ценность AI приблизительная. Состав и размер порций могут отличаться. Проверьте порции перед сохранением.",
-  aiPrivacy: "Фото отправляется в OpenAI для анализа. KALO сохраняет оценки, а не фотографию.",
+  aiPrivacy: `OpenAI анализирует ваше фото. ${appName} сохраняет только оценку пищевой ценности.`,
   aiFree: "Каждый аккаунт получает 5 бесплатных AI сканирований. Сканер штрихкодов остаётся бесплатным.",
   aiLoginRequired: "Войдите, чтобы сканировать еду с AI и использовать свои сканирования.",
   aiCredits: "Осталось AI сканирований", aiPack: "Ещё 5 сканирований · €4.99", aiPackNote: "Разовый платёж в евро. Покупайте новые пакеты, когда удобно.",
@@ -88,7 +89,7 @@ const lv: Record<FeatureKey, string> = {
   barcodeTab: "Svītrkods · bez maksas", photoTab: "AI ēdiena foto", aiTitle: "Viens foto — vairāk skaidrības.",
   aiSubtitle: "Nofotografē maltīti, lai aptuveni noteiktu produktus, porcijas un uzturvērtību.", aiBadge: "AI APLĒSE",
   aiEstimate: "AI uzturvērtība ir aptuvena. Sastāvdaļas un porciju lielumi var atšķirties. Pirms saglabāšanas pārbaudi porcijas.",
-  aiPrivacy: "Foto tiek nosūtīts OpenAI analīzei. KALO saglabā aplēses, nevis tavu foto.",
+  aiPrivacy: `OpenAI analizē tavu foto. ${appName} saglabā tikai uzturvērtības aplēsi.`,
   aiFree: "Katrs konts saņem 5 bezmaksas AI skenēšanas reizes. Svītrkodu skeneris paliek bez maksas.",
   aiLoginRequired: "Piesakies, lai izmantotu AI ēdiena skeneri un savas skenēšanas reizes.",
   aiCredits: "Atlikušās AI skenēšanas reizes", aiPack: "Vēl 5 reizes · €4.99", aiPackNote: "Vienreizējs maksājums eiro. Iegādājies jaunu komplektu, kad vēlies.",

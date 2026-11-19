@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
+import { appName } from "@/lib/brand";
 import "./globals.css";
 
+const description = "Track meals, scan barcodes or food photos, and follow a calorie plan based on your goals.";
+
 export const metadata: Metadata = {
-  title: "KALO — Your healthy balance",
-  description: "Multilingual calorie tracker, weight goals and barcode nutrition scanner.",
-  applicationName: "KALO",
+  metadataBase: new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || "kalo-steel.vercel.app"}`),
+  title: appName,
+  description,
+  applicationName: appName,
+  openGraph: {
+    type: "website",
+    siteName: appName,
+    title: appName,
+    description,
+    images: [{ url: "/balance-bowl.jpg", width: 1200, height: 800, alt: "A bowl of chicken, grains and vegetables" }],
+  },
+  twitter: { card: "summary_large_image" },
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "KALO" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: appName },
   icons: { icon: "/favicon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 

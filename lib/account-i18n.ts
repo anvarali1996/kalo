@@ -1,8 +1,10 @@
+import { appName } from "./brand";
+
 const en = {
   aiStorageUnavailable: "The AI scanner database needs setup. Contact your administrator.",
   sessionEnded: "Your session ended. Please sign in again.",
   adminTitle: "Admin panel",
-  adminBack: "Back to KALO",
+  adminBack: `Back to ${appName}`,
   adminUsers: "Registered users",
   adminSearch: "Search by name or email",
   adminSearchButton: "Search",
@@ -28,7 +30,7 @@ const uz: Record<Key, string> = {
   aiStorageUnavailable: "AI skaner bazasini sozlash kerak. Administratorga murojaat qiling.",
   sessionEnded: "Sessiyangiz tugadi. Hisobingizga qayta kiring.",
   adminTitle: "Admin panel",
-  adminBack: "KALO’ga qaytish",
+  adminBack: `${appName}’ga qaytish`,
   adminUsers: "Ro‘yxatdan o‘tgan foydalanuvchilar",
   adminSearch: "Ism yoki email bo‘yicha qidirish",
   adminSearchButton: "Qidirish",
@@ -53,7 +55,7 @@ const ru: Record<Key, string> = {
   aiStorageUnavailable: "База данных AI-сканера требует настройки. Обратитесь к администратору.",
   sessionEnded: "Сеанс завершён. Войдите в аккаунт снова.",
   adminTitle: "Панель администратора",
-  adminBack: "Вернуться в KALO",
+  adminBack: `Вернуться в ${appName}`,
   adminUsers: "Зарегистрированные пользователи",
   adminSearch: "Поиск по имени или адресу почты",
   adminSearchButton: "Найти",
@@ -78,7 +80,7 @@ const lv: Record<Key, string> = {
   aiStorageUnavailable: "AI skenera datubāze ir jāiestata. Sazinies ar administratoru.",
   sessionEnded: "Sesija ir beigusies. Lūdzu, piesakies vēlreiz.",
   adminTitle: "Administratora panelis",
-  adminBack: "Atpakaļ uz KALO",
+  adminBack: `Atpakaļ uz ${appName}`,
   adminUsers: "Reģistrētie lietotāji",
   adminSearch: "Meklēt pēc vārda vai e-pasta",
   adminSearchButton: "Meklēt",

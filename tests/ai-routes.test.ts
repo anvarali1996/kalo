@@ -144,10 +144,28 @@ describe("Stripe Checkout and signed webhook API", () => {
     expect(result.status).toBe(200);
     expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({
       mode: "payment", adaptive_pricing: { enabled: false }, automatic_tax: { enabled: false },
-      line_items: [{ price_data: { currency: "eur", unit_amount: 499, tax_behavior: "inclusive", product_data: { name: "KALO · 5 AI food scans" } }, quantity: 1 }],
+      line_items: [{ price_data: { currency: "eur", unit_amount: 499, tax_behavior: "inclusive", product_data: { name: "Kalo Balance · 5 AI food scans" } }, quantity: 1 }],
       metadata: { userId, purchaseId: requestId, pack: SCAN_PACK.code },
       success_url: `http://localhost:3000/?checkout=success&purchase=${requestId}`,
     }), { idempotencyKey: `kalo-scans:${requestId}` });
+    expect(await balance()).toBe(5);
+  });
+  it("recovers a previously created Stripe session after the app rename", async () => {
+    const requestId = randomUUID();
+    const idempotencyKey = `kalo-scans:${requestId}`;
+    await pg.query("SELECT kalo_start_purchase($1,$2)", [userId, requestId]);
+    const create = vi.mocked(stripe.checkout.sessions.create);
+    create.mockRejectedValueOnce(new Stripe.errors.StripeIdempotencyError({
+      type: "idempotency_error", statusCode: 400, message: "Request parameters changed",
+    })).mockResolvedValueOnce({
+      id: "cs_legacy", status: "open", url: "https://checkout.stripe.com/c/pay/legacy",
+    } as Stripe.Response<Stripe.Checkout.Session>);
+
+    const result = await checkout(post("/api/stripe/checkout", { requestId, locale: "en" }));
+    expect(result.status).toBe(200);
+    const names = create.mock.calls.map(([params]) => params?.line_items?.[0]?.price_data?.product_data?.name);
+    expect(names).toEqual(["Kalo Balance · 5 AI food scans", "KALO · 5 AI food scans"]);
+    expect(create.mock.calls.map(([, options]) => options?.idempotencyKey)).toEqual([idempotencyKey, idempotencyKey]);
     expect(await balance()).toBe(5);
   });
   it("rejects forged, altered and old webhook signatures", async () => {

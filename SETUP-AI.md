@@ -14,12 +14,12 @@ Five more scans cost **€4.99 EUR**, as a one-time Stripe Checkout payment.
    API key and enable API billing. Set `OPENAI_API_KEY` in `.env.local`.
 4. `OPENAI_VISION_MODEL` defaults to `gpt-6-luna`, OpenAI's recommended
    replacement for GPT-4.1 mini. A custom model must support image inputs and
-   structured outputs through the Responses API. Updated KALO also maps the old
+   structured outputs through the Responses API. Kalo Balance also maps the old
    GPT-4.1 mini model name and snapshot to Luna. [OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
 5. Set `APP_URL=http://localhost:3000` for local Checkout return URLs.
 
 Photo files are resized on the device, limited and checked again on the server,
-and sent to OpenAI with `store: false`. KALO stores a request digest and the
+and sent to OpenAI with `store: false`. Kalo Balance stores a request digest and the
 nutrition estimate, not the original photo. Food names and estimate notes are
 requested in the user's selected language.
 
@@ -135,8 +135,8 @@ Stripe test Checkout with webhook delivery. These require configured credentials
 
 ## Admin panel and device sessions
 
-1. Sign in to the KALO account that should administer the deployment.
-2. Open `/api/auth/me` on the same KALO domain and copy the UUID in `user.id`.
+1. Sign in to the Kalo Balance account that should administer the deployment.
+2. Open `/api/auth/me` on the app’s domain and copy the UUID in `user.id`.
 3. In Vercel Project Settings → Environment Variables, set the server variable
    `KALO_ADMIN_USER_IDS` to that UUID for the target environment. For multiple
    admins, enter the UUIDs separated by commas. For local development, use

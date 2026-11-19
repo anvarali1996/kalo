@@ -81,9 +81,13 @@ p {
 .brand {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 0 12px;
-    cursor: pointer;
+    gap: 10px;
+    width: 100%;
+    padding: 0 9px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
     user-select: none
 }
 
@@ -91,6 +95,7 @@ p {
 .auth-logo {
     width: 42px;
     height: 42px;
+    flex: 0 0 42px;
     border-radius: 14px;
     background: #2e624d;
     color: #fff;
@@ -108,21 +113,15 @@ p {
     color: #f5be8a
 }
 
-.brand strong {
-    display: block;
-    font-family: Manrope, sans-serif;
-    font-size: 29px;
-    letter-spacing: -1.5px;
-    line-height: 30px
-}
-
-.brand small {
-    font-size: 8px;
-    letter-spacing: 1.55px;
-    display: block;
-    margin-top: 5px;
-    color: #92a096;
-    font-weight: 800
+.brand strong,
+.topbar-brand,
+.auth-brand strong {
+    font-family: Manrope, Arial, sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -.55px;
+    line-height: 1.2;
+    white-space: nowrap
 }
 
 .sidebar-label {
@@ -213,25 +212,6 @@ p {
     display: block
 }
 
-.sidebar-brand-footer {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    color: #94a398;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .2px;
-    margin: 24px 7px 0
-}
-
-.footer-sparkle {
-    color: #4e8c65
-}
-
-.sidebar-brand-footer span span {
-    color: #dbad79
-}
-
 .main-area {
     flex: 1;
     min-width: 0;
@@ -255,6 +235,14 @@ p {
     display: flex;
     align-items: center;
     gap: 13px
+}
+
+.topbar-brand {
+    display: none;
+    border: 0;
+    padding: 5px 0;
+    background: transparent;
+    color: var(--ink)
 }
 
 .topbar-date {
@@ -391,123 +379,85 @@ p {
 }
 
 .hero {
-    position: relative;
-    min-height: 234px;
-    border-radius: 18px;
-    background: linear-gradient(103deg, #e8f1e5 0%, #edf3e7 48%, #e1eddb 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1.13fr) minmax(0, 1fr);
+    min-height: 316px;
+    border-radius: 24px;
+    background: #214639;
+    color: #fff;
     overflow: hidden;
+    margin-bottom: 20px
+}
+
+.hero-copy {
     display: flex;
-    align-items: center;
-    margin-bottom: 36px;
-    padding: 32px 39px
-}
-
-.hero>div:first-child {
-    position: relative;
-    z-index: 2;
-    width: 70%
-}
-
-.hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    color: #528461;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 1.45px
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(26px, 3.6vw, 54px)
 }
 
 .hero h1 {
     font-family: Manrope, Arial, sans-serif;
-    font-size: clamp(25px, 2.4vw, 35px);
-    letter-spacing: -1.5px;
-    line-height: 1.25;
-    margin: 10px 0
+    font-size: clamp(31px, 3.55vw, 54px);
+    font-weight: 800;
+    letter-spacing: -.052em;
+    line-height: 1.08;
+    text-wrap: balance;
+    margin: 0 0 14px
 }
 
 .hero p {
-    color: #627e6c;
-    font-size: 12px;
-    line-height: 1.7;
-    max-width: 470px;
-    margin: 0 0 20px
+    color: #e1eae2;
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 420px;
+    margin: 0 0 24px
+}
+
+.hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap
+}
+
+.hero-actions .btn {
+    min-height: 44px;
+    padding: 11px 15px;
+    font-size: 13px
+}
+
+.hero-actions .btn:focus-visible {
+    outline: 2px solid #f5be8a;
+    outline-offset: 3px
 }
 
 .btn-hero {
-    background: #37674e;
-    color: #fff;
-    padding: 13px 17px
+    background: #f3f5ea;
+    color: #214639
 }
 
-.hero-decoration {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 37%;
-    height: 100%;
-    overflow: hidden
+.btn-hero:hover {
+    background: #fff
 }
 
-.blob-one,
-.blob-two {
-    position: absolute;
-    border: 1px solid rgba(73, 125, 75, .16);
-    border-radius: 50%;
-    width: 300px;
-    height: 300px;
-    right: -80px;
-    top: -45px;
-    background: rgba(196, 221, 188, .25)
+.btn-hero-outline {
+    border: 1px solid #95b2a3;
+    background: transparent;
+    color: #fff
 }
 
-.blob-two {
-    width: 200px;
-    height: 200px;
-    right: 72px;
-    top: 85px;
-    background: rgba(221, 238, 211, .45)
+.btn-hero-outline:hover {
+    background: #ffffff14
 }
 
-.hero-leaf {
-    position: absolute;
-    right: 90px;
-    top: 35px;
-    width: 130px;
-    height: 130px;
-    border-radius: 40px;
-    transform: rotate(-18deg);
-    display: grid;
-    place-items: center;
-    color: #6c9a74
+.hero-photo {
+    position: relative;
+    min-width: 0;
+    background: #19392d
 }
 
-.hero-float {
-    position: absolute;
-    bottom: 20px;
-    right: 48px;
-    background: #fff;
-    border: 1px solid #eff4e9;
-    box-shadow: 0 10px 32px #57775920;
-    padding: 11px 13px;
-    border-radius: 12px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    color: #d88d5e
-}
-
-.hero-float span {
-    font-size: 13px;
-    color: #335b46;
-    font-weight: 800
-}
-
-.hero-float small {
-    display: block;
-    color: #8da08e;
-    font-size: 9px;
-    margin-top: 2px
+.hero-photo img {
+    object-fit: cover
 }
 
 .demo-banner {
@@ -1001,10 +951,6 @@ p {
     z-index: 2;
     position: relative;
     width: 77%
-}
-
-.cta-panel .eyebrow {
-    color: #b5dbb6
 }
 
 .cta-panel h2 {
@@ -2170,7 +2116,11 @@ p {
     color: #789780
 }
 
-.auth-logo {
+.auth-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 38px;
     margin-bottom: 18px
 }
 
@@ -2183,7 +2133,7 @@ p {
 
 .auth-modal>p {
     font-size: 11px;
-    color: #96a799;
+    color: var(--ink-soft);
     line-height: 1.7;
     margin-bottom: 22px
 }
@@ -2309,10 +2259,6 @@ p {
         padding-left: 55px;
         padding-right: 55px
     }
-
-    .hero {
-        min-height: 258px
-    }
 }
 
 @media (max-width:1200px) {
@@ -2381,13 +2327,23 @@ p {
     }
 
     .brand {
-        padding: 0
+        padding: 0;
+        justify-content: center
     }
 
-    .brand>div,
+    .brand strong,
     .sidebar-label,
     .nav-item span,
     .sidebar-bottom {
+        display: none
+    }
+
+    .topbar-brand {
+        display: initial
+    }
+
+    .topbar-date,
+    .today-dot {
         display: none
     }
 
@@ -2464,16 +2420,18 @@ p {
         height: 100vh;
         width: 265px;
         transform: translateX(-110%);
-        transition: transform .2s ease;
+        visibility: hidden;
+        transition: transform .2s ease, visibility .2s ease;
         align-items: stretch;
         padding: 28px 16px
     }
 
     .app-sidebar.sidebar-show {
+        visibility: visible;
         transform: translateX(0)
     }
 
-    .sidebar-show .brand>div,
+    .sidebar-show .brand strong,
     .sidebar-show .sidebar-label,
     .sidebar-show .nav-item span,
     .sidebar-show .sidebar-bottom {
@@ -2541,17 +2499,14 @@ p {
         color: #4d775b;
         display: grid;
         place-items: center;
-        padding: 5px;
-        margin-right: 3px
+        min-width: 36px;
+        min-height: 36px;
+        padding: 5px
     }
 
     .topbar-left,
     .topbar-right {
         gap: 7px
-    }
-
-    .topbar-date {
-        font-size: 11px
     }
 
     .language-select {
@@ -2569,44 +2524,41 @@ p {
         padding: 0 10px
     }
 
-    .btn-signin span {
+    .btn-signin span,
+    .profile-chip-name {
         display: none
     }
 
     .hero {
-        min-height: 225px;
-        padding: 25px 22px;
-        margin-bottom: 27px
+        min-height: 0;
+        grid-template-columns: minmax(0, 1fr);
+        border-radius: 20px;
+        margin-bottom: 16px
+    }
+
+    .hero-copy {
+        padding: 26px 21px 22px
     }
 
     .hero h1 {
-        font-size: 27px
-    }
-
-    .hero>div:first-child {
-        width: 88%
+        font-size: clamp(30px, 7vw, 40px);
+        text-wrap: initial
     }
 
     .hero p {
-        max-width: 290px
+        font-size: 14px;
+        margin-bottom: 18px
     }
 
-    .hero-decoration {
-        opacity: .6;
-        width: 50%
+    .hero-photo {
+        aspect-ratio: 16 / 9
     }
 
-    .hero-float {
-        display: none
-    }
-
-    .hero-leaf {
-        right: 5px;
-        top: 65px
-    }
-
-    .blob-one {
-        right: -150px
+    .profile-form .field input,
+    .profile-form .field select,
+    .weigh-fields .field input {
+        font-size: 16px;
+        min-height: 44px
     }
 
     .section-line h2 {
@@ -2818,25 +2770,9 @@ p {
         bottom: 89px;
         right: 12px
     }
-
-    .app-sidebar .brand>div {
-        display: none
-    }
-
-    .app-sidebar.sidebar-show .brand>div {
-        display: block
-    }
 }
 
 @media (max-width:430px) {
-    .topbar-date {
-        font-size: 10px
-    }
-
-    .today-dot {
-        display: none
-    }
-
     .language-select select {
         min-width: 63px;
         font-size: 10px
@@ -2846,16 +2782,8 @@ p {
         padding: 0 9px
     }
 
-    .hero h1 {
-        font-size: 24px
-    }
-
-    .hero p {
-        font-size: 11px
-    }
-
-    .hero-decoration {
-        opacity: .35
+    .topbar-brand {
+        font-size: 16px
     }
 
     .stat-card {
@@ -2937,7 +2865,7 @@ p {
     text-underline-offset: 2px
 }
 
-/* KALO v2: install CTA and scanner controls */
+/* Install and scanner controls */
 .pwa-banner {
     display: flex;
     align-items: center;

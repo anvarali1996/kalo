@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Info, LoaderCircle, LogIn, X } from "lucide-react";
+import { appName } from "@/lib/brand";
 import { translations } from "@/lib/i18n";
 import { credentialsSchema, signupFormSchema } from "@/lib/validations";
 import type { Locale } from "@/lib/types";
@@ -53,7 +54,7 @@ export function AuthModal({ mode, setMode, locale, dbConfigured, submit }: Props
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !busy) setMode(null); }}>
     <div className="auth-modal" role="dialog" aria-modal="true" aria-label={mode === "signup" ? t.signupTitle : t.loginTitle}>
       <button className="modal-close" disabled={busy} onClick={() => setMode(null)} aria-label={t.close}><X size={20}/></button>
-      <span className="auth-logo">k<span>.</span></span>
+      <div className="auth-brand"><span className="auth-logo" aria-hidden="true">k<span>.</span></span><strong>{appName}</strong></div>
       <h2>{mode === "signup" ? t.signupTitle : t.loginTitle}</h2><p>{t.accountSub}</p>
       {!dbConfigured && <div className="auth-warning"><Info size={17}/>{t.dbMissing}</div>}
       <form onSubmit={e => void onSubmit(e)} className="auth-form">

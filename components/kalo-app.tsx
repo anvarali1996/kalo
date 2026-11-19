@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
-  Activity, ArrowDownRight, ArrowRight, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight,
+  ArrowDownRight, ArrowRight, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight,
   CircleHelp, ClipboardList, Flame, Globe2, Heart, Info, Leaf, LoaderCircle, LogIn, LogOut,
-  Menu, Minus, Plus, ScanLine, Settings2, ShieldCheck, Sparkles, Target, Trash2, TrendingDown,
-  UserRound, Wallet, Weight, X,
+  Menu, Plus, ScanLine, Settings2, ShieldCheck, Sparkles, Target, Trash2, TrendingDown,
+  UserRound, Weight, X,
 } from "lucide-react";
 import type { DiaryItem, Locale, Profile, SessionUser, View, WeightItem } from "@/lib/types";
 import { defaultProfile } from "@/lib/types";
+import { appName } from "@/lib/brand";
 import { calculatePlan, localDate, sumDiary } from "@/lib/calories";
 import { intlLocale, localeNames, translations } from "@/lib/i18n";
 import { profileSchema } from "@/lib/validations";
@@ -200,15 +202,15 @@ export function KaloApp() {
   };
 
   return <div className="app-shell">
-    <aside className={`app-sidebar ${menuOpen ? "sidebar-show" : ""}`}>
+    <aside id="app-sidebar" className={`app-sidebar ${menuOpen ? "sidebar-show" : ""}`}>
       <button className="sidebar-mobile-close" onClick={() => setMenuOpen(false)} aria-label={t.close}><X size={20}/></button>
-      <div className="brand" onClick={() => switchView("dashboard")} role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && switchView("dashboard")}>
-        <span className="brand-mark">k<span>.</span></span><div><strong>kalo</strong><small>FEEL GOOD, LIVE WELL</small></div>
-      </div>
+      <button type="button" className="brand" onClick={() => switchView("dashboard")} aria-label={appName}>
+        <span className="brand-mark" aria-hidden="true">k<span>.</span></span><strong>{appName}</strong>
+      </button>
       <div className="sidebar-label">{t.yourSpace}</div>
-      <nav className="nav-list" aria-label="Main navigation">
+      <nav className="nav-list" aria-label={t.mainNavigation}>
         {(Object.keys(navIcons) as View[]).map(key => {
-          const Icon = navIcons[key]; return <button key={key} type="button" onClick={() => switchView(key)} className={`nav-item ${view === key ? "active" : ""}`}>
+          const Icon = navIcons[key]; return <button key={key} type="button" onClick={() => switchView(key)} className={`nav-item ${view === key ? "active" : ""}`} aria-label={t[navKeys[key]]} aria-current={view === key ? "page" : undefined}>
             <Icon size={19} strokeWidth={1.8}/><span>{t[navKeys[key]]}</span>{view === key && <span className="nav-dot"/>}
           </button>;
         })}
@@ -216,31 +218,33 @@ export function KaloApp() {
       <div className="sidebar-bottom">
         <div className="sidebar-mini-card"><div className="sidebar-mini-illustration"><Heart size={23} fill="currentColor"/></div>
           <strong>{t.healthJourney}</strong><span>{t.madeFor}</span></div>
-        <div className="sidebar-brand-footer"><span className="footer-sparkle"><Leaf size={17}/></span><span>Made for balance <span>✳</span></span></div>
       </div>
     </aside>
     {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label={t.close}/>}
     <main className="main-area">
-      <div className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={22}/></button>
+      <div className="topbar"><div className="topbar-left">
+        <button className="mobile-menu" onClick={() => setMenuOpen(true)} aria-label={t.openMenu} aria-expanded={menuOpen} aria-controls="app-sidebar"><Menu size={22}/></button>
+        <button type="button" className="topbar-brand" onClick={() => switchView("dashboard")}>{appName}</button>
         <span className="today-dot"/><span className="topbar-date">{loaded ? calendarDisplay(today, locale, { weekday: "long", day: "numeric", month: "long" }) : "\u00a0"}</span></div>
         <div className="topbar-right"><div className="language-select"><Globe2 size={17}/><select value={locale} onChange={e => setLocale(e.target.value as Locale)} aria-label={t.language}>
           {(Object.keys(localeNames) as Locale[]).map(l => <option value={l} key={l}>{localeNames[l]}</option>)}</select></div>
-          {user ? <button className="profile-chip" onClick={() => switchView("profile")}><span className="avatar">{user.name.charAt(0).toUpperCase()}</span><span className="profile-chip-name">{user.name}</span></button>
-            : <button className="btn btn-signin" onClick={() => setAuthOpen("signup")}><UserRound size={17}/><span>{t.signup}</span></button>}
+          {user ? <button className="profile-chip" aria-label={t.navProfile} onClick={() => switchView("profile")}><span className="avatar">{user.name.charAt(0).toUpperCase()}</span><span className="profile-chip-name">{user.name}</span></button>
+            : <button className="btn btn-signin" aria-label={t.signup} onClick={() => setAuthOpen("signup")}><UserRound size={17}/><span>{t.signup}</span></button>}
         </div></div>
+      {view === "dashboard" && <DashboardHero locale={locale} onNavigate={switchView}/>}
       <PwaInstallBanner locale={locale} visible={loaded && view === "dashboard"}/>
-      {!loaded && <div className="initial-loading"><LoaderCircle size={29} className="spin"/> KALO</div>}
+      {!loaded && <div className="initial-loading" role="status"><LoaderCircle size={29} className="spin"/>{t.loadingDashboard}</div>}
       {loaded && <>
         {!user && <div className="demo-banner"><span className="demo-pill"><Sparkles size={13}/>{t.demo}</span><span>{t.demoNotice}</span><button onClick={() => setAuthOpen("signup")}>{t.saveAccount}<ArrowRight size={15}/></button></div>}
-        {view === "dashboard" && <Dashboard locale={locale} profile={profile} diary={diary} weights={weights} plan={plan} today={today} total={totals.kcal} remaining={remaining} percent={percent} onNavigate={switchView}/ >}
+        {view === "dashboard" && <Dashboard locale={locale} diary={diary} weights={weights} plan={plan} today={today} total={totals.kcal} remaining={remaining} percent={percent} onNavigate={switchView}/ >}
         {view === "scanner" && <ScannerHub locale={locale} user={user} addEntry={addEntry} onEntriesAdded={addAiEntries} openAuth={() => setAuthOpen("login")} notify={notify} today={today}/ >}
         {view === "diary" && <DiaryView locale={locale} items={dayItems} date={selectedDate} onDate={setSelectedDate} remove={removeEntry} navigate={switchView}/ >}
         {view === "profile" && <ProfileView locale={locale} profile={profile} plan={plan} weights={weights} onSave={saveProfile} onWeight={addWeight}
           user={user} dbConfigured={dbConfigured} openAuth={setAuthOpen} logout={logout}/ >}
-        <footer className="page-footer"><span>© 2026 KALO</span><span><Leaf size={13}/>{t.madeFor}</span></footer>
+        <footer className="page-footer"><span>© 2026 {appName}</span></footer>
       </>}
     </main>
-    <nav className="mobile-bottom-nav" aria-label="Mobile navigation">{(Object.keys(navIcons) as View[]).map(key => {const Icon = navIcons[key]; return <button key={key} className={view === key ? "active" : ""} onClick={() => switchView(key)}><Icon size={21}/><span>{t[navKeys[key]]}</span></button>;})}</nav>
+    <nav className="mobile-bottom-nav" aria-label={t.mobileNavigation}>{(Object.keys(navIcons) as View[]).map(key => {const Icon = navIcons[key]; return <button key={key} className={view === key ? "active" : ""} aria-current={view === key ? "page" : undefined} onClick={() => switchView(key)}><Icon size={21}/><span>{t[navKeys[key]]}</span></button>;})}</nav>
     <PwaRegistration/>
     {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <Info size={18}/> : <Check size={18}/>}<span>{toast.text}</span><button onClick={() => setToast(null)} aria-label={t.close}><X size={16}/></button></div>}
     {authOpen && <AuthModal mode={authOpen} setMode={setAuthOpen} locale={locale} dbConfigured={dbConfigured} submit={signIn}/>}
@@ -251,8 +255,25 @@ function PanelHeading({ title, subtitle, children }: { title: string; subtitle?:
   return <div className="panel-heading"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{children}</div>;
 }
 
-function Dashboard({locale,profile,diary,weights,plan,today,total,remaining,percent,onNavigate}: {
-  locale: Locale; profile: Profile; diary: DiaryItem[]; weights: WeightItem[]; plan: ReturnType<typeof calculatePlan>;
+function DashboardHero({ locale, onNavigate }: { locale: Locale; onNavigate: (view: View) => void }) {
+  const t = translations[locale];
+  return <section className="hero fade-in" aria-labelledby="dashboard-title">
+    <div className="hero-copy">
+      <h1 id="dashboard-title">{t.greeting}</h1>
+      <p>{t.greetingSub}</p>
+      <div className="hero-actions">
+        <button className="btn btn-hero" type="button" onClick={() => onNavigate("scanner")}><ScanLine size={17}/>{t.scanNow}</button>
+        <button className="btn btn-hero-outline" type="button" onClick={() => onNavigate("profile")}>{t.planAction}<ArrowRight size={16}/></button>
+      </div>
+    </div>
+    <div className="hero-photo">
+      <Image src="/balance-bowl.jpg" alt="" fill sizes="(max-width: 700px) 100vw, 40vw" loading="eager" fetchPriority="high"/>
+    </div>
+  </section>;
+}
+
+function Dashboard({locale,diary,weights,plan,today,total,remaining,percent,onNavigate}: {
+  locale: Locale; diary: DiaryItem[]; weights: WeightItem[]; plan: ReturnType<typeof calculatePlan>;
   today: string; total: number; remaining: number; percent: number; onNavigate: (v: View)=>void;
 }) {
   const t = translations[locale];
@@ -261,10 +282,7 @@ function Dashboard({locale,profile,diary,weights,plan,today,total,remaining,perc
   const maxBar = Math.max(...chartValues, plan.suggestedCalories, 1);
   const todays = sumDiary(diary.filter(x => x.date === today));
   return <div className="view fade-in">
-    <div className="hero"><div><span className="hero-eyebrow"><Sparkles size={15}/> {t.yourSpace}</span><h1>{t.greeting}</h1><p>{t.greetingSub}</p>
-      <button className="btn btn-hero" onClick={() => onNavigate("scanner")}>{t.scanNow}<ArrowRight size={18}/></button></div>
-      <div className="hero-decoration"><span className="blob-one"/><span className="blob-two"/><div className="hero-leaf"><Leaf size={90} strokeWidth={1.15}/></div><div className="hero-float"><Flame size={17}/><span>{formatNum(plan.suggestedCalories, locale)} {t.kcal}<small>{t.dailyGoal}</small></span></div></div></div>
-    <div className="section-line"><div><span className="eyebrow">{t.today.toUpperCase()}</span><h2>{t.overview}</h2><p>{t.overviewSub}</p></div><span className="date-chip"><CalendarDays size={16}/>{calendarDisplay(today, locale, { day: "numeric", month: "short" })}</span></div>
+    <div className="section-line"><div><h2>{t.overview}</h2><p>{t.overviewSub}</p></div><span className="date-chip"><CalendarDays size={16}/>{calendarDisplay(today, locale, { day: "numeric", month: "short" })}</span></div>
     <div className="stat-grid">
       <StatCard icon={<Target size={20}/>} color="green" name={t.dailyGoal} value={formatNum(plan.suggestedCalories,locale)} suffix={t.kcal} sub={`${t.maintenance}: ${formatNum(plan.maintenance,locale)}`}/>
       <StatCard icon={<Flame size={20}/>} color="orange" name={t.eaten} value={formatNum(total,locale)} suffix={t.kcal} sub={`${Math.round(percent)}% ${t.ofGoal}`}/>
@@ -286,7 +304,7 @@ function Dashboard({locale,profile,diary,weights,plan,today,total,remaining,perc
     </div>
     <div className="dashboard-two-col bottom-two-col">
       <div className="card weight-panel"><PanelHeading title={t.trend} subtitle={t.trendSub}><button className="text-action" onClick={() => onNavigate("profile")}>{t.navProfile}<ChevronRight size={16}/></button></PanelHeading><WeightChart weights={weights} locale={locale} empty={t.noWeight}/></div>
-      <div className="cta-panel"><div className="cta-art"><ScanLine size={59} strokeWidth={1.2}/></div><div><span className="eyebrow">KALO</span><h2>{t.startScanning}</h2><p>{t.scanPitch}</p><button className="btn btn-white" onClick={() => onNavigate("scanner")}>{t.scanNow}<ArrowRight size={16}/></button></div></div>
+      <div className="cta-panel"><div className="cta-art"><ScanLine size={59} strokeWidth={1.2}/></div><div><h2>{t.startScanning}</h2><p>{t.scanPitch}</p><button className="btn btn-white" onClick={() => onNavigate("scanner")}>{t.scanNow}<ArrowRight size={16}/></button></div></div>
     </div>
     <div className="card plan-strip"><div className="plan-strip-top"><span className="eyebrow"><Target size={14}/>{t.planTitle}</span><button onClick={() => onNavigate("profile")} className="text-action">{t.navProfile}<ChevronRight size={16}/></button></div>
       <div className="plan-strip-grid"><div><small>{t.bmr}</small><strong>{formatNum(plan.bmr,locale)} <em>{t.kcal}</em></strong></div><div><small>{t.maintenance}</small><strong>{formatNum(plan.maintenance,locale)} <em>{t.kcal}</em></strong></div><div><small>{t.weeklyLoss}</small><strong>≈ {plan.projectedWeeklyKg} <em>{t.kg}</em></strong></div><div><small>{t.toGoal}</small><strong>{plan.weeks ?? "—"} <em>{t.weeks}</em></strong></div></div>
@@ -333,44 +351,66 @@ function DiaryView({locale,items,date,onDate,remove,navigate}:{locale:Locale;ite
   </div>;
 }
 
+type MeasurementField = "age" | "heightCm" | "weightKg" | "goalWeightKg";
+type ProfileDraft = Omit<Profile, MeasurementField> & Record<MeasurementField, string>;
+
+function makeProfileDraft(profile: Profile): ProfileDraft {
+  return {
+    ...profile,
+    age: String(profile.age),
+    heightCm: String(profile.heightCm),
+    weightKg: String(profile.weightKg),
+    goalWeightKg: String(profile.goalWeightKg),
+  };
+}
+
+const readNumberInput = (value: string) => value === "" ? NaN : Number(value);
+
 function ProfileView({locale,profile,plan,weights,onSave,onWeight,user,dbConfigured,openAuth,logout}:{
   locale:Locale; profile:Profile; plan:ReturnType<typeof calculatePlan>; weights:WeightItem[];
   onSave:(p:Profile)=>Promise<void>; onWeight:(date:string,kg:number)=>Promise<void>;
   user:SessionUser|null; dbConfigured:boolean; openAuth:(mode:"signup"|"login")=>void;logout:()=>Promise<void>;
 }) {
   const t=translations[locale];
-  const [draft,setDraft]=useState<Profile>(profile);
+  const [draft,setDraft]=useState(() => makeProfileDraft(profile));
   const [weight,setWeight]=useState(String(profile.weightKg));
   const [weighDate,setWeighDate]=useState(todayDate);
   const [busy,setBusy]=useState(false);
   const [formError,setFormError]=useState("");
-  useEffect(()=>{setDraft(profile);setWeight(String(profile.weightKg));},[profile]);
-  const change = <K extends keyof Profile>(key:K,value:Profile[K]) => setDraft(prev=>({...prev,[key]:value}));
+  useEffect(()=>{setDraft(makeProfileDraft(profile));setWeight(String(profile.weightKg));},[profile]);
+  const change = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) => setDraft(prev=>({...prev,[key]:value}));
   const submit = async (e:React.FormEvent) => {
     e.preventDefault(); setFormError("");
-    if (draft.goalWeightKg>draft.weightKg) {setFormError(t.goalRule);return;}
+    const next: Profile = {
+      ...draft,
+      age: readNumberInput(draft.age),
+      heightCm: readNumberInput(draft.heightCm),
+      weightKg: readNumberInput(draft.weightKg),
+      goalWeightKg: readNumberInput(draft.goalWeightKg),
+    };
+    if (next.goalWeightKg>next.weightKg) {setFormError(t.goalRule);return;}
     setBusy(true);
-    try {await onSave(draft);}catch(e){setFormError(e instanceof Error?e.message:t.formError);}finally{setBusy(false);}
+    try {await onSave(next);}catch(e){setFormError(e instanceof Error?e.message:t.formError);}finally{setBusy(false);}
   };
   const submitWeight = async (e:React.FormEvent) => {
     e.preventDefault(); setFormError("");setBusy(true);
-    try {await onWeight(weighDate,Number(weight));}
+    try {await onWeight(weighDate,readNumberInput(weight));}
     catch(e){setFormError(e instanceof Error?e.message:t.formError);}finally{setBusy(false);}
   };
   const activities = ["sedentary","light","moderate","active","very"] as const;
   const activityLabels = [t.activitySedentary,t.activityLight,t.activityModerate,t.activityActive,t.activityVery];
   return <div className="view fade-in"><div className="view-header"><div><span className="eyebrow"><Settings2 size={14}/> {t.planTitle.toUpperCase()}</span><h1>{t.settingsTitle}</h1><p>{t.settingsSub}</p></div><div className="profile-header-icon"><UserRound size={28}/></div></div>
     <div className="profile-grid"><section className="card profile-form-card"><PanelHeading title={t.personalDetails}/><form className="profile-form" onSubmit={e=>void submit(e)}>
-      <div className="field"><label htmlFor="p-age">{t.age}</label><div className="field-with-suffix"><input id="p-age" type="number" required min="18" max="100" value={draft.age} onChange={e=>change("age",Number(e.target.value))}/><span>{t.years}</span></div></div>
+      <div className="field"><label htmlFor="p-age">{t.age}</label><div className="field-with-suffix"><input id="p-age" type="number" inputMode="numeric" required min="18" max="100" value={draft.age} onChange={e=>change("age",e.target.value)}/><span>{t.years}</span></div></div>
       <div className="field"><label htmlFor="p-sex">{t.sex}</label><select id="p-sex" value={draft.sex} onChange={e=>change("sex",e.target.value as Profile["sex"])}><option value="female">{t.female}</option><option value="male">{t.male}</option></select></div>
-      <div className="field"><label htmlFor="p-height">{t.height}</label><div className="field-with-suffix"><input id="p-height" type="number" required min="100" max="240" value={draft.heightCm} onChange={e=>change("heightCm",Number(e.target.value))}/><span>{t.cm}</span></div></div>
-      <div className="field"><label htmlFor="p-weight">{t.currentWeight}</label><div className="field-with-suffix"><input id="p-weight" type="number" required min="30" max="400" step="0.1" value={draft.weightKg} onChange={e=>change("weightKg",Number(e.target.value))}/><span>{t.kg}</span></div></div>
-      <div className="field"><label htmlFor="p-goal">{t.targetWeight}</label><div className="field-with-suffix"><input id="p-goal" type="number" required min="30" max="400" step="0.1" value={draft.goalWeightKg} onChange={e=>change("goalWeightKg",Number(e.target.value))}/><span>{t.kg}</span></div></div>
+      <div className="field"><label htmlFor="p-height">{t.height}</label><div className="field-with-suffix"><input id="p-height" type="number" inputMode="numeric" required min="100" max="240" value={draft.heightCm} onChange={e=>change("heightCm",e.target.value)}/><span>{t.cm}</span></div></div>
+      <div className="field"><label htmlFor="p-weight">{t.currentWeight}</label><div className="field-with-suffix"><input id="p-weight" type="number" inputMode="decimal" required min="30" max="400" step="0.1" value={draft.weightKg} onChange={e=>change("weightKg",e.target.value)}/><span>{t.kg}</span></div></div>
+      <div className="field"><label htmlFor="p-goal">{t.targetWeight}</label><div className="field-with-suffix"><input id="p-goal" type="number" inputMode="decimal" required min="30" max="400" step="0.1" value={draft.goalWeightKg} onChange={e=>change("goalWeightKg",e.target.value)}/><span>{t.kg}</span></div></div>
       <div className="field"><label htmlFor="p-rate">{t.weeklyTarget}</label><div className="field-with-suffix"><select id="p-rate" value={draft.weeklyGoalKg} onChange={e=>change("weeklyGoalKg",Number(e.target.value))}>
         {[0.2,0.3,0.4,0.5,0.6,0.75].map(n=><option key={n} value={n}>{n} {t.kg}</option>)}</select></div></div>
       <div className="field full"><label htmlFor="p-activity">{t.activity}</label><select id="p-activity" value={draft.activity} onChange={e=>change("activity",e.target.value as Profile["activity"])}>
         {activities.map((a,i)=><option value={a} key={a}>{activityLabels[i]}</option>)}</select></div>
-      {formError && <p className="form-error">{formError}</p>}
+      {formError && <p className="form-error full" role="alert">{formError}</p>}
       <button disabled={busy} type="submit" className="btn btn-primary profile-submit">{busy?<LoaderCircle size={17} className="spin"/>:<Check size={17}/>} {t.saveProfile}</button>
     </form></section>
     <div className="profile-side-col"><section className="card plan-detail"><PanelHeading title={t.planTitle} subtitle={t.planSub}/><div className="plan-main-number"><span>{t.dailyGoal}</span><strong>{formatNum(plan.suggestedCalories,locale)} <small>{t.kcal}</small></strong></div>
@@ -378,7 +418,7 @@ function ProfileView({locale,profile,plan,weights,onSave,onWeight,user,dbConfigu
       {plan.floorApplied && <p className="soft-warning"><Info size={15}/>{t.floorNote}</p>}</section>
       <section className="card explainer"><div className="explainer-title"><CircleHelp size={19}/><strong>{t.methodology}</strong></div><p>{t.methodText}</p><div className="explainer-disclaimer"><ShieldCheck size={17}/><span>{t.disclaimer}</span></div></section></div>
     </div>
-    <div className="profile-grid lower-profile"><section className="card weigh-form"><PanelHeading title={t.weightCheck} subtitle={t.weightCheckSub}/><form className="weigh-fields" onSubmit={e=>void submitWeight(e)}><div className="field"><label htmlFor="weigh-value">{t.currentWeight} ({t.kg})</label><input id="weigh-value" type="number" min="30" max="400" step="0.1" required value={weight} onChange={e=>setWeight(e.target.value)}/></div><div className="field"><label htmlFor="weigh-date">{t.today}</label><input id="weigh-date" type="date" max={todayDate()} required value={weighDate} onChange={e=>setWeighDate(e.target.value)}/></div><button disabled={busy} type="submit" className="btn btn-primary"><Plus size={17}/>{t.logWeight}</button></form>
+    <div className="profile-grid lower-profile"><section className="card weigh-form"><PanelHeading title={t.weightCheck} subtitle={t.weightCheckSub}/><form className="weigh-fields" onSubmit={e=>void submitWeight(e)}><div className="field"><label htmlFor="weigh-value">{t.currentWeight} ({t.kg})</label><input id="weigh-value" type="number" inputMode="decimal" min="30" max="400" step="0.1" required value={weight} onChange={e=>setWeight(e.target.value)}/></div><div className="field"><label htmlFor="weigh-date">{t.today}</label><input id="weigh-date" type="date" max={todayDate()} required value={weighDate} onChange={e=>setWeighDate(e.target.value)}/></div><button disabled={busy} type="submit" className="btn btn-primary"><Plus size={17}/>{t.logWeight}</button></form>
       <div className="recent-weights"><h3>{t.weightHistory}</h3>{[...weights].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(w=><div key={w.id}><span>{calendarDisplay(w.date,locale,{day:"numeric",month:"short",year:"numeric"})}</span><strong>{w.kg} {t.kg}</strong></div>)}{!weights.length && <p className="muted">{t.noWeight}</p>}</div></section>
       <section className="card profile-account"><PanelHeading title={t.accountTitle} subtitle={t.accountSub}/><div className="account-display"><span className="account-avatar"><UserRound size={27}/></span><div><strong>{user?.name || t.demo}</strong><small>{user?.email || (dbConfigured ? t.demoNotice : t.dbMissing)}</small></div></div>
         {user ? <div className="account-actions">

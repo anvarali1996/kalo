@@ -1,21 +1,21 @@
-# KALO — AI food photos, scan packs and password confirmation
+# Kalo Balance — AI food photos, scan packs and password confirmation
 
 - AI photo scanning with editable portions, estimated calories/macros, and idempotent meal saves.
 - Five free scans for existing and new users; repeatable one-time Stripe packs of five scans for €4.99 EUR.
 - PostgreSQL credit accounting and transaction history with verified, idempotent webhooks.
 - Translated password confirmation and show/hide controls in Uzbek, English, Russian and Latvian.
-- The existing free Open Food Facts barcode scanner remains unchanged.
+- Open Food Facts barcode scanning is free.
 
 **Setup and release:** [SETUP-AI.md](SETUP-AI.md) includes exact OpenAI, Stripe, Neon migration and Vercel steps.
 Use `npm run db:migrate` for this release; `db:push` does not install accounting functions or the welcome-credit trigger.
 
 ---
 
-# KALO — kaloriya va vazn nazorati
+# Kalo Balance — kaloriya va vazn nazorati
 
 **Next.js 16 · React 19 · TypeScript · Node.js · Neon PostgreSQL · Drizzle ORM · Tailwind CSS v4 · ZXing · Open Food Facts v3**
 
-KALO — 4 tilda (o‘zbekcha, inglizcha, ruscha, latishcha) ishlaydigan, telefon kamerasi bilan barcode o‘qiydigan va vazn kamaytirishni rejalashga yordam beradigan web-ilova.
+Kalo Balance — 4 tilda (o‘zbekcha, inglizcha, ruscha, latishcha) ishlaydigan, telefon kamerasi bilan barcode o‘qiydigan va vazn kamaytirishni rejalashga yordam beradigan web-ilova.
 
 ## Nimalar ishlaydi?
 
@@ -112,7 +112,7 @@ tests/                      Hisoblash testlari
 ## Open Food Facts foydalanish qoidalari
 
 - API: `GET https://world.openfoodfacts.org/api/v3/product/{barcode}.json?...`.
-- **Rate-limit:** mahsulot GET uchun 15/min/IP; izlash uchun 10/min/IP. KALO mahsulotni Neon’da 7 kun cache qiladi, Next `fetch` cache ham 1 kun. Ko‘plab real foydalanuvchilar uchun qo‘shimcha throttling kerak.
+- **Rate-limit:** mahsulot GET uchun 15/min/IP; izlash uchun 10/min/IP. Kalo Balance mahsulotni Neon’da 7 kun cache qiladi, Next `fetch` cache ham 1 kun. Ko‘plab real foydalanuvchilar uchun qo‘shimcha throttling kerak.
 - Har doim haqiqiy `OFF_CONTACT_EMAIL` o‘rnating. Kelajakda ularning API usage form ni ham to‘ldiring.
 - Barcode **kamerada ZXing orqali o‘qiladi**, Open Food Facts esa **barcode raqamiga mos mahsulotni qidiradi**; OFF kamerani bevosita boshqarmaydi.
 - Manba va litsenziyalar: https://world.openfoodfacts.org va https://opendatacommons.org/licenses/odbl/1-0/. Mahsulot rasmlarida ham alohida CC BY-SA shartlari bo‘lishi mumkin. Asl qadoqdan tekshirmasdan allergen yoki tibbiy qaror chiqarmang.
