@@ -18,8 +18,9 @@ beforeEach(() => {
   fetchMock.mockReset().mockImplementation(async () => response());
   vi.stubGlobal("fetch", fetchMock); vi.stubEnv("OPENAI_API_KEY", "local_test_fixture_only");
   vi.stubEnv("OPENAI_VISION_MODEL", undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => {});
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe("OpenAI Vision SDK integration", () => {
   it.each([["uz", "Uzbek"], ["en", "English"], ["ru", "Russian"], ["lv", "Latvian"]])("uses structured vision output with the %s language", async (locale, language) => {
@@ -59,6 +60,18 @@ describe("OpenAI Vision SDK integration", () => {
   it("rejects invalid nutrition values rather than returning an estimate", async () => {
     fetchMock.mockImplementationOnce(async () => response({ ...estimate, foods: [{ ...estimate.foods[0], portionGrams: 0 }] }));
     await expect(analyzeFoodPhoto(image, "en")).rejects.toMatchObject({ code: "aiScanFailed" });
+  });
+  it.each([
+    [401, "invalid_api_key", "invalid_api_key"],
+    [429, "insufficient_quota", "insufficient_quota"],
+    [400, "unexpected_private_details", undefined],
+  ])("logs safe diagnostics for an OpenAI HTTP %i without exposing the error body", async (status, code, loggedCode) => {
+    fetchMock.mockImplementationOnce(async () => Response.json({
+      error: { code, message: "Fake credential from upstream", param: "Private request field" },
+    }, { status }));
+    await expect(analyzeFoodPhoto(image, "en")).rejects.toMatchObject({ code: "aiScanFailed", status: 502 });
+    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(console.warn).toHaveBeenCalledWith("KALO OpenAI scan failed", { status, code: loggedCode });
   });
   it("requires a configured server API key", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");

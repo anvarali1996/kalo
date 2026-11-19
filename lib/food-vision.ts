@@ -7,6 +7,19 @@ import type { Locale } from "./types";
 const languages: Record<Locale, string> = { uz: "Uzbek", en: "English", ru: "Russian", lv: "Latvian" };
 const defaultVisionModel = "gpt-6-luna";
 const previousVisionModels = new Set(["gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"]);
+const scanFailureLog = "KALO OpenAI scan failed";
+const loggableProviderCodes = new Set([
+  "billing_hard_limit_reached",
+  "insufficient_quota",
+  "invalid_api_key",
+  "invalid_image",
+  "invalid_image_format",
+  "invalid_json_schema",
+  "model_not_found",
+  "rate_limit_exceeded",
+  "unsupported_parameter",
+  "unsupported_value",
+]);
 
 export async function analyzeFoodPhoto(image: string, locale: Locale) {
   if (!process.env.OPENAI_API_KEY) throw new AiError("aiUnavailable", 503);
@@ -31,13 +44,29 @@ Write food names and a brief note about portion/ingredient uncertainty in ${lang
       ] }],
       text: { format: zodTextFormat(foodPhotoResultSchema, "food_nutrition_estimate") },
     });
-    if (response.status !== "completed" || !response.output_parsed) throw new AiError("aiScanFailed", 502);
+    if (response.status !== "completed" || !response.output_parsed) {
+      const reason = response.incomplete_details?.reason;
+      console.warn(scanFailureLog, {
+        reason: reason === "max_output_tokens" || reason === "content_filter" ? reason : "missing_structured_output",
+      });
+      throw new AiError("aiScanFailed", 502);
+    }
     const result = foodPhotoResultSchema.parse(response.output_parsed);
     if (!result.containsFood || result.foods.length === 0) throw new AiError("aiNoFood", 422);
     return result;
   } catch (error) {
     if (error instanceof AiError) throw error;
-    // A refusal, invalid output, timeout or provider error never consumes a credit.
+    // Provider error messages can contain credentials or request data.
+    if (error instanceof OpenAI.APIError && error.status !== undefined) {
+      const { status, code } = error;
+      console.warn(scanFailureLog, { status, code: code && loggableProviderCodes.has(code) ? code : undefined });
+    } else if (error instanceof OpenAI.APIConnectionTimeoutError) {
+      console.warn(scanFailureLog, { reason: "timeout" });
+    } else if (error instanceof OpenAI.APIConnectionError) {
+      console.warn(scanFailureLog, { reason: "connection_error" });
+    } else {
+      console.warn(scanFailureLog, { reason: "invalid_structured_output" });
+    }
     throw new AiError("aiScanFailed", 502);
   }
 }
