@@ -7,6 +7,7 @@ import { scanApi } from "@/lib/client-api";
 import { translations } from "@/lib/i18n";
 import { credentialsSchema, signupFormSchema } from "@/lib/validations";
 import type { Locale } from "@/lib/types";
+import { BrandMark } from "./brand-mark";
 
 export type AuthMode = "signup" | "login" | "forgot";
 
@@ -74,7 +75,7 @@ export function AuthModal({ mode, setMode, locale, dbConfigured, submit }: Props
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !busy) setMode(null); }}>
     <div className="auth-modal" role="dialog" aria-modal="true" aria-label={title}>
       <button className="modal-close" disabled={busy} onClick={() => setMode(null)} aria-label={t.close}><X size={20}/></button>
-      <div className="auth-brand"><span className="auth-logo" aria-hidden="true">k<span>.</span></span><strong>{appName}</strong></div>
+      <div className="auth-brand"><BrandMark/><strong>{appName}</strong></div>
       <h2>{title}</h2><p>{forgot ? t.passwordResetPrompt : t.accountSub}</p>
       {!dbConfigured && <div className="auth-warning"><Info size={17}/>{t.dbMissing}</div>}
       {linkSent && forgot ? <p className="password-link-sent" role="status">{t.passwordResetSent}</p>

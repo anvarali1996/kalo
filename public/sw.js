@@ -1,7 +1,8 @@
-/* The offline cache contains the fallback page and static icons. */
-const CACHE_NAME = "kalo-offline-v4";
+/* The offline cache contains the fallback page and its icon. */
+const CACHE_NAME = "kalo-offline-v5";
 const OFFLINE_PAGE = "/offline.html";
-const FILES = [OFFLINE_PAGE, "/icons/icon-192.png", "/icons/icon-512.png"];
+const OFFLINE_ICON = "/icons/kalo-balance-192.png";
+const FILES = [OFFLINE_PAGE, OFFLINE_ICON];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -22,9 +23,16 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
-  if (request.method !== "GET" || request.mode !== "navigate") return;
+  if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || url.pathname === "/api" || url.pathname.startsWith("/api/")) return;
+  if (url.origin !== self.location.origin) return;
+
+  if (request.destination === "image" && url.pathname === OFFLINE_ICON && !url.search) {
+    event.respondWith(caches.match(OFFLINE_ICON, { cacheName: CACHE_NAME }).then((cached) => cached ?? fetch(request)));
+    return;
+  }
+
+  if (request.mode !== "navigate" || url.pathname === "/api" || url.pathname.startsWith("/api/")) return;
 
   // Keep app pages on the network and use the static fallback for a lost connection.
   event.respondWith(

@@ -7,6 +7,7 @@ import { localeSchema } from "@/lib/ai-validation";
 import { translations } from "@/lib/i18n";
 import { resetTokenSchema } from "@/lib/validations";
 import type { Locale } from "@/lib/types";
+import { BrandMark } from "./brand-mark";
 import { PasswordForm } from "./password-form";
 
 export function ResetPasswordView() {
@@ -37,7 +38,7 @@ export function ResetPasswordView() {
   const t = translations[locale];
   return <main className="password-reset-page">
     <section className="auth-modal password-reset-card" aria-labelledby="reset-heading">
-      <div className="auth-brand"><span className="auth-logo" aria-hidden="true">k<span>.</span></span><strong>{appName}</strong></div>
+      <div className="auth-brand"><BrandMark/><strong>{appName}</strong></div>
       <h1 id="reset-heading">{t.passwordResetTitle}</h1>
       {done ? <p role="status">{t.passwordResetSuccess}</p>
         : token === null ? <p role="status">{t.loadingDashboard}</p>

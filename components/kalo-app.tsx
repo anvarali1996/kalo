@@ -18,6 +18,7 @@ import { profileSchema } from "@/lib/validations";
 import { monitorSession, requestSessionCheck } from "@/lib/session-client";
 import { ScannerHub } from "./scanner-hub";
 import { AuthModal, type AuthMode } from "./auth-modal";
+import { BrandMark } from "./brand-mark";
 import { PasswordForm } from "./password-form";
 import { PwaInstallBanner, PwaRegistration } from "./pwa";
 
@@ -218,7 +219,7 @@ export function KaloApp() {
     <aside id="app-sidebar" className={`app-sidebar ${menuOpen ? "sidebar-show" : ""}`}>
       <button className="sidebar-mobile-close" onClick={() => setMenuOpen(false)} aria-label={t.close}><X size={20}/></button>
       <button type="button" className="brand" onClick={() => switchView("dashboard")} aria-label={appName}>
-        <span className="brand-mark" aria-hidden="true">k<span>.</span></span><strong>{appName}</strong>
+        <BrandMark/><strong>{appName}</strong>
       </button>
       <div className="sidebar-label">{t.yourSpace}</div>
       <nav className="nav-list" aria-label={t.mainNavigation}>
@@ -237,7 +238,9 @@ export function KaloApp() {
     <main className="main-area">
       <div className="topbar"><div className="topbar-left">
         <button className="mobile-menu" onClick={() => setMenuOpen(true)} aria-label={t.openMenu} aria-expanded={menuOpen} aria-controls="app-sidebar"><Menu size={22}/></button>
-        <button type="button" className="topbar-brand" onClick={() => switchView("dashboard")}>{appName}</button>
+        <button type="button" className="topbar-brand" onClick={() => switchView("dashboard")}>
+          <BrandMark size={24}/><span>{appName}</span>
+        </button>
         <span className="today-dot"/><span className="topbar-date">{loaded ? calendarDisplay(today, locale, { weekday: "long", day: "numeric", month: "long" }) : "\u00a0"}</span></div>
         <div className="topbar-right"><div className="language-select"><Globe2 size={17}/><select value={locale} onChange={e => setLocale(e.target.value as Locale)} aria-label={t.language}>
           {(Object.keys(localeNames) as Locale[]).map(l => <option value={l} key={l}>{localeNames[l]}</option>)}</select></div>

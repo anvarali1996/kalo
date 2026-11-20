@@ -91,26 +91,9 @@ p {
     user-select: none
 }
 
-.brand-mark,
-.auth-logo {
-    width: 42px;
-    height: 42px;
-    flex: 0 0 42px;
-    border-radius: 14px;
-    background: #2e624d;
-    color: #fff;
-    font-family: Manrope, Arial, sans-serif;
-    font-weight: 800;
-    font-size: 33px;
-    letter-spacing: -3px;
-    line-height: 36px;
-    text-align: center;
-    display: inline-block
-}
-
-.brand-mark span,
-.auth-logo span {
-    color: #f5be8a
+.brand-mark {
+    flex: none;
+    object-fit: contain
 }
 
 .brand strong,
@@ -237,12 +220,24 @@ p {
     gap: 13px
 }
 
+.topbar-left {
+    min-width: 0
+}
+
 .topbar-brand {
     display: none;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
     border: 0;
     padding: 5px 0;
     background: transparent;
     color: var(--ink)
+}
+
+.topbar-brand span {
+    overflow: hidden;
+    text-overflow: ellipsis
 }
 
 .topbar-date {
@@ -2339,7 +2334,7 @@ p {
     }
 
     .topbar-brand {
-        display: initial
+        display: inline-flex
     }
 
     .topbar-date,
@@ -2773,6 +2768,10 @@ p {
 }
 
 @media (max-width:430px) {
+    .topbar {
+        gap: 8px
+    }
+
     .language-select select {
         min-width: 63px;
         font-size: 10px

@@ -19,7 +19,10 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: appName },
-  icons: { icon: "/favicon.svg", apple: "/icons/apple-touch-icon.png" },
+  icons: {
+    icon: { url: "/icons/kalo-balance-192.png", sizes: "192x192", type: "image/png" },
+    apple: { url: "/icons/kalo-balance-apple-touch.png", sizes: "180x180", type: "image/png" },
+  },
 };
 
 export const viewport = { themeColor: "#285a43", width: "device-width", initialScale: 1 };

@@ -14,9 +14,9 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "any",
     lang: "uz",
     icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/icons/kalo-balance-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/kalo-balance-mark.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/kalo-balance-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
