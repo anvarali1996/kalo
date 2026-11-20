@@ -542,7 +542,7 @@ BEGIN
   PERFORM 1 FROM users WHERE id = v_user FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
   -- Explicitly consume the token even if the supplied hash equals the old hash.
-  DELETE FROM password_reset_tokens WHERE user_id = v_user AND token_hash = p_token_hash AND expires_at > clock_timestamp();
+  DELETE FROM password_reset_tokens WHERE user_id = v_user AND token_hash = p_token_hash AND expires_at > now();
   IF NOT FOUND THEN RETURN false; END IF;
   UPDATE users SET password_hash = p_new_hash WHERE id = v_user;
   RETURN true;

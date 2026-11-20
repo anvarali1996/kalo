@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
+import { NeonDbError } from "@neondatabase/serverless";
+import { DrizzleQueryError } from "drizzle-orm/errors";
 import { drizzle } from "drizzle-orm/pglite";
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
@@ -174,6 +176,59 @@ describe("Stripe Checkout and signed webhook API", () => {
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
     expect((await pg.query("SELECT id FROM scan_purchases")).rows).toHaveLength(0);
   });
+
+  it.each(["stripe_price_retrieve", "stripe_customer_create", "checkout_session_create"] as const)(
+    "logs a Stripe failure at %s with only safe metadata", async stage => {
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      const failure = new Stripe.errors.StripeInvalidRequestError({
+        type: "invalid_request_error", statusCode: 400,
+        message: "sk_test_fixture_secret test@example.test cs_fixture_session",
+        code: "sk_test_fixture_secret", param: "metadata[test@example.test]",
+      });
+      vi.mocked(stripe.prices.retrieve).mockImplementationOnce(async () => {
+        if (stage === "stripe_price_retrieve") throw failure;
+        return { active: true, currency: "eur", type: "one_time", unit_amount: 299 } as Stripe.Response<Stripe.Price>;
+      });
+      if (stage !== "stripe_price_retrieve") {
+        vi.mocked(stripe.customers.create).mockImplementationOnce(async () => {
+          if (stage === "stripe_customer_create") throw failure;
+          return { id: "cus_fixture" } as Stripe.Response<Stripe.Customer>;
+        });
+      }
+      if (stage === "checkout_session_create") vi.mocked(stripe.checkout.sessions.create).mockRejectedValueOnce(failure);
+      try {
+        const response = await checkout(post("/api/stripe/checkout", { requestId: randomUUID(), locale: "en", product: "pack20" }));
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({ error: "aiServiceError" });
+        expect(JSON.parse(JSON.stringify(log.mock.calls))).toEqual([["KALO Stripe checkout failed", {
+          stage, errorType: "StripeError", stripeType: "StripeInvalidRequestError", stripeStatus: 400,
+        }]]);
+        expect(await balance()).toBe(6);
+      } finally { log.mockRestore(); }
+    },
+  );
+
+  it("logs a wrapped PostgreSQL code at the reservation stage without logging SQL or values", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const cause = new NeonDbError("postgresql://secret@example.test/database");
+    cause.code = "42501";
+    cause.detail = "test@example.test";
+    const execute = vi.spyOn(db, "execute").mockImplementationOnce(() => {
+      throw new DrizzleQueryError("select kalo_start_pack($1, $2)", [userId, "test@example.test"], cause);
+    });
+    vi.mocked(stripe.prices.retrieve).mockResolvedValueOnce({ active: true, currency: "eur", type: "one_time",
+      unit_amount: 299 } as Stripe.Response<Stripe.Price>);
+    try {
+      const response = await checkout(post("/api/stripe/checkout", { requestId: randomUUID(), locale: "en", product: "pack20" }));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "aiServiceError" });
+      expect(JSON.parse(JSON.stringify(log.mock.calls))).toEqual([["KALO Stripe checkout failed", {
+        stage: "checkout_reservation", errorType: "DrizzleQueryError", postgresCode: "42501",
+      }]]);
+      expect(stripe.customers.create).not.toHaveBeenCalled();
+    } finally { execute.mockRestore(); log.mockRestore(); }
+  });
+
   it("rejects forged, altered and old webhook signatures", async () => {
     await makePurchase();
     const raw = eventBody();

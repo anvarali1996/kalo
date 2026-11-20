@@ -5,6 +5,7 @@ import { scanAccounts, scanPurchases } from "@/db/schema";
 import { AiError } from "./ai-http";
 import { publicAppOrigin } from "./http";
 import { billingProducts, pricing, type BillingProduct } from "./pricing";
+import type { StripeCustomerStage } from "./stripe-checkout-log";
 import type { Locale, SessionUser } from "./types";
 
 export const SCAN_PACK = { credits: 5, amount: 499, currency: "eur", code: "kalo_5_scans_v1" } as const;
@@ -64,6 +65,11 @@ export async function requireStripePrice(stripe: Stripe, priceId: string, produc
   if (!price.active || !matchesPrice(price, product)) throw new AiError("aiCheckoutUnavailable", 503);
 }
 
+export function isProCheckoutExpiryError(error: unknown, expiresAt: number | undefined) {
+  return expiresAt !== undefined && expiresAt * 1000 <= Date.now() + 30 * 60_000 &&
+    error instanceof Stripe.errors.StripeInvalidRequestError && error.statusCode === 400 && error.param === "expires_at";
+}
+
 export async function storedStripeCustomer(userId: string) {
   const [account] = await database().select({ id: scanAccounts.stripeCustomerId })
     .from(scanAccounts).where(eq(scanAccounts.userId, userId)).limit(1);
@@ -71,12 +77,15 @@ export async function storedStripeCustomer(userId: string) {
   return account.id;
 }
 
-export async function ensureStripeCustomer(stripe: Stripe, user: SessionUser) {
+export async function ensureStripeCustomer(stripe: Stripe, user: SessionUser, setStage: (stage: StripeCustomerStage) => void) {
+  setStage("stripe_customer_lookup");
   const existing = await storedStripeCustomer(user.id);
   if (existing) return existing;
+  setStage("stripe_customer_create");
   const created = await stripe.customers.create({
     email: user.email, metadata: { kaloUserId: user.id },
   }, { idempotencyKey: `kalo-customer:${user.id}` });
+  setStage("stripe_customer_attach");
   const [attached] = await database().update(scanAccounts).set({ stripeCustomerId: created.id })
     .where(and(eq(scanAccounts.userId, user.id), isNull(scanAccounts.stripeCustomerId)))
     .returning({ id: scanAccounts.stripeCustomerId });

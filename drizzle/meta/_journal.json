@@ -29,6 +29,13 @@
       "when": 1795121739403,
       "tag": "0003_pro_repricing",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795190400000,
+      "tag": "0004_password_reset_expiry",
+      "breakpoints": true
     }
   ]
 }

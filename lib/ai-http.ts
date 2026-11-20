@@ -9,20 +9,20 @@ export function aiFail(code: string, status = 400) {
   return NextResponse.json({ error: code }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-export function aiHandleError(error: unknown) {
+export function aiHandleError(error: unknown, { log = true } = {}) {
   if (error instanceof AiError) return aiFail(error.code, error.status);
   if (error instanceof ZodError || error instanceof SyntaxError) return aiFail("aiInvalidInput");
   const dbCode = databaseErrorCode(error);
   // Do not log provider request bodies, photos, connection strings, or SDK objects.
-  console.error("KALO scan/payment operation failed", dbCode ?? (error instanceof Error ? error.name : "UnknownError"));
+  if (log) console.error("KALO scan/payment operation failed", dbCode ?? (error instanceof Error ? error.name : "UnknownError"));
   if (dbCode && ["42P01", "42703", "42883", "P0002"].includes(dbCode)) return aiFail("aiStorageUnavailable", 503);
   return aiFail("aiServiceError", 503);
 }
 
-function databaseErrorCode(error: unknown): string | undefined {
+export function databaseErrorCode(error: unknown): string | undefined {
   let current = error;
   for (let depth = 0; depth < 4 && current && typeof current === "object"; depth += 1) {
-    if ("code" in current && typeof current.code === "string" && /^[\dA-Z]{5}$/.test(current.code)) return current.code;
+    if ("code" in current && typeof current.code === "string" && /^(?:\d[0-9A-Z]|F0|HV|P0|XX)[0-9A-Z]{3}$/.test(current.code)) return current.code;
     current = "cause" in current ? current.cause : undefined;
   }
 }

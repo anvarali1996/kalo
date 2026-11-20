@@ -55,6 +55,22 @@ async function reserve(priceId = price) {
   await pg.query("SELECT kalo_reserve_pro_checkout($1,$2,$3,'en')", [userId, checkoutId, priceId]);
 }
 
+async function reserveNearExpiry() {
+  await reserve();
+  const expiresAt = now() + 15 * 60;
+  await pg.query(`UPDATE pro_checkouts SET expires_at=to_timestamp($1),
+    created_at=to_timestamp($1)-interval '1 hour' WHERE id=$2`, [expiresAt, checkoutId]);
+  return expiresAt;
+}
+
+const checkoutRow = async (id = checkoutId) =>
+  (await pg.query("SELECT status, checkout_session_id FROM pro_checkouts WHERE id=$1", [id])).rows[0];
+
+const invalidExpiry = () => new Stripe.errors.StripeInvalidRequestError({
+  type: "invalid_request_error", statusCode: 400, param: "expires_at",
+  message: "The requested expiry is less than 30 minutes after creation.",
+});
+
 function cycle(id: string, start: number, end: number, paid: boolean, priceId = price, amount = 799) {
   const billingReason = id === "in_first" ? "subscription_create" : "subscription_cycle";
   subscription.items.data[0].current_period_end = end;
@@ -158,6 +174,71 @@ it("leaves a pending old-price Checkout in place until expiry without reopening 
     id: "cs_old", customer, client_reference_id: userId, metadata: { kaloProCheckout: checkoutId, userId },
   })).status).toBe(200);
   expect((await checkout(request("checkout", newCheckout))).status).toBe(200);
+});
+
+it("releases only the rejected Pro reservation when Stripe confirms its expiry is too close", async () => {
+  const expiresAt = await reserveNearExpiry();
+  const otherUser = await createTestUser(pg);
+  const otherCheckout = randomUUID();
+  await pg.query("SELECT kalo_reserve_pro_checkout($1,$2,$3,'en')", [otherUser, otherCheckout, price]);
+  const createSession = vi.mocked(stripe.checkout.sessions.create).mockRejectedValueOnce(invalidExpiry());
+
+  const rejected = await checkout(request("checkout", { product: "pro", locale: "ru", requestId: randomUUID() }));
+  expect(rejected.status).toBe(409);
+  expect(await rejected.json()).toEqual({ error: "aiCheckoutFinished" });
+  expect(createSession).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    expires_at: expiresAt, locale: "en",
+  }), { idempotencyKey: `kalo-pro:${checkoutId}` });
+  expect(await checkoutRow()).toEqual({ status: "expired", checkout_session_id: null });
+  expect(await checkoutRow(otherCheckout)).toEqual({ status: "pending", checkout_session_id: null });
+
+  const freshId = randomUUID();
+  const fresh = await checkout(request("checkout", { product: "pro", locale: "ru", requestId: freshId }));
+  expect(fresh.status).toBe(200);
+  expect(createSession).toHaveBeenNthCalledWith(2, expect.objectContaining({
+    metadata: { kaloProCheckout: freshId, userId }, locale: "ru",
+  }), { idempotencyKey: `kalo-pro:${freshId}` });
+  expect(await checkoutRow(freshId)).toEqual({ status: "pending", checkout_session_id: "cs_pro" });
+  expect(await account()).toMatchObject({ plan: "basic", credits: 6, purchases: [] });
+});
+
+it("keeps the Pro reservation after an ambiguous Stripe failure and replays with the same key and parameters", async () => {
+  const expiresAt = await reserveNearExpiry();
+  const createSession = vi.mocked(stripe.checkout.sessions.create).mockRejectedValueOnce(
+    new Stripe.errors.StripeConnectionError({ message: "Checkout response was lost." }),
+  );
+  const failed = await checkout(request("checkout", { product: "pro", locale: "en", requestId: checkoutId }));
+  expect(failed.status).toBe(503);
+  expect(await checkoutRow()).toEqual({ status: "pending", checkout_session_id: null });
+
+  const replay = await checkout(request("checkout", { product: "pro", locale: "lv", requestId: randomUUID() }));
+  expect(replay.status).toBe(200);
+  expect(await replay.json()).toEqual({ url: "https://checkout.stripe.com/mock_checkout" });
+  expect(createSession).toHaveBeenCalledTimes(2);
+  expect(createSession.mock.calls[0]).toEqual([
+    expect.objectContaining({ expires_at: expiresAt, locale: "en" }), { idempotencyKey: `kalo-pro:${checkoutId}` },
+  ]);
+  expect(createSession.mock.calls[1]).toEqual(createSession.mock.calls[0]);
+  expect(await checkoutRow()).toEqual({ status: "pending", checkout_session_id: "cs_pro" });
+});
+
+it("keeps a fresh Pro reservation after an unexpected Stripe expiry validation error", async () => {
+  await reserve();
+  vi.mocked(stripe.checkout.sessions.create).mockRejectedValueOnce(invalidExpiry());
+  const result = await checkout(request("checkout", { product: "pro", locale: "en", requestId: checkoutId }));
+  expect(result.status).toBe(503);
+  expect(await checkoutRow()).toEqual({ status: "pending", checkout_session_id: null });
+});
+
+it("preserves a Pro Session attached while the expiry rejection was in flight", async () => {
+  await reserveNearExpiry();
+  vi.mocked(stripe.checkout.sessions.create).mockImplementationOnce(async () => {
+    await pg.query("UPDATE pro_checkouts SET checkout_session_id='cs_attached' WHERE id=$1", [checkoutId]);
+    throw invalidExpiry();
+  });
+
+  await checkout(request("checkout", { product: "pro", locale: "en", requestId: checkoutId }));
+  expect(await checkoutRow()).toEqual({ status: "pending", checkout_session_id: "cs_attached" });
 });
 
 it("verifies the card payment, grants each paid cycle once and reports scheduled cancellation", async () => {
